@@ -1,0 +1,152 @@
+.settings-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.35);
+    z-index: 199;
+    opacity: 1;
+    transition: opacity 0.4s ease;
+}
+
+.settings-backdrop.closing {
+    opacity: 0;
+}
+
+.SettingPanel {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    margin: 0 auto;
+    width: 95%;
+    max-width: 800px;
+    height: 50%;
+    background: var(--panel-bg);
+    z-index: 200;
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+    animation: showing 0.4s;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+.SettingPanel.closing {
+    animation: hiding 0.4s forwards;
+}
+
+@keyframes showing {
+    0% {
+        bottom: -500px;
+    }
+    100% {
+        bottom: 0;
+    }
+}
+
+@keyframes hiding {
+    0% {
+        bottom: 0;
+    }
+    100% {
+        bottom: -500px;
+    }
+}
+
+.settings-container {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+}
+
+.setting-title {
+    color: var(--panel-text);
+    font-size: 18px;
+    margin-bottom: 15px;
+    font-weight: 500;
+}
+
+.font-size-buttons {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+}
+
+.theme-buttons {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+}
+
+/* Общие стили для кнопок */
+.font-size-btn,
+.theme-btn {
+    border-radius: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+/* Стили для кнопок размера шрифта */
+.font-size-btn {
+    width: 74px;
+    height: 74px;
+    border: 3px solid rgba(130, 255, 3, 1);
+    background: rgba(26, 26, 26, 1);
+    color: #ffffff;
+}
+
+.font-size-btn:hover {
+    border: 3px solid rgb(123, 136, 110);
+}
+
+/* Стили для кнопок темы */
+.theme-btn {
+    width: 140px;
+    height: 70px;
+    border: 3px solid rgba(130, 255, 3, 1);
+    background: rgba(26, 26, 26, 1);
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.theme-btn:hover {
+    border: 3px solid rgb(123, 136, 110);
+}
+
+/* Активное состояние для темной темы */
+.font-size-btn[aria-pressed="true"],
+.theme-btn[aria-pressed="true"] {
+    border: 3px solid #ffffff;
+}
+
+/* Стили для светлой темы */
+.light-theme .font-size-btn,
+.light-theme .theme-btn {
+    border: 3px solid rgba(87, 0, 236, 1);
+    background: #ffffff;
+    color: rgba(45, 45, 45, 1);
+}
+
+.light-theme .font-size-btn:hover,
+.light-theme .theme-btn:hover {
+    border: 3px solid rgba(70, 0, 190, 1);
+}
+
+/* Активное состояние для светлой темы */
+.light-theme .font-size-btn[aria-pressed="true"],
+.light-theme .theme-btn[aria-pressed="true"] {
+    border: 3px solid #000000;
+}
+
+/* Размеры шрифта для кнопок */
+.font-size-btn.small {
+    font-size: 16px;
+}
+
+.font-size-btn.medium {
+    font-size: 20px;
+}
+
+.font-size-btn.large {
+    font-size: 24px;
+}
