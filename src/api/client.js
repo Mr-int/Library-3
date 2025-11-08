@@ -1,48 +1,40 @@
-// Используем относительный путь, чтобы работать через Vite proxy в dev
-const DEFAULT_BASE_URL = import.meta?.env?.VITE_API_BASE_URL || '/api';
+const DEFAULT_BASE_URL = 'http://10.100.10.203:8080/api';
 
 export function getBaseUrl() {
-    return DEFAULT_BASE_URL.replace(/\/$/, '');
+    return DEFAULT_BASE_URL;
 }
 
 export async function apiFetch(path, options = {}) {
-    const url = `${getBaseUrl()}${path.startsWith('/') ? '' : '/'}${path}`;
+    const url = `${getBaseUrl()}${path.startsWith('/') ? path : `/${path}`}`;
     const headers = {
         'Accept': 'application/json',
-        ...(options.body && !(options.body instanceof FormData) ? { 'Content-Type': 'application/json' } : {}),
+        'Content-Type': 'application/json',
         ...(options.headers || {}),
     };
-    const body = options.body && !(options.body instanceof FormData) && typeof options.body !== 'string'
+
+    const body = options.body && typeof options.body !== 'string'
         ? JSON.stringify(options.body)
         : options.body;
 
-    console.groupCollapsed('[apiFetch] request');
-    console.log('URL:', url);
-    console.log('method:', options.method || 'GET');
-    console.log('headers:', headers);
-    if (body) {
-        try { console.log('body:', typeof body === 'string' ? JSON.parse(body) : body); } catch { console.log('body(raw):', body); }
-    }
-    console.groupEnd();
+    console.log('[apiFetch] request to:', url);
+    console.log('[apiFetch] method:', options.method || 'GET');
+    console.log('[apiFetch] body:', options.body);
 
     let resp;
     try {
         resp = await fetch(url, {
+            method: options.method || 'GET',
             headers,
-            ...options,
             body,
+            // Добавляем credentials если нужно
+            credentials: 'omit', // или 'include' если нужны куки
         });
     } catch (networkError) {
         console.error('[apiFetch] network error:', networkError);
-        throw networkError;
+        throw new Error(`Network error: ${networkError.message}`);
     }
 
-    console.groupCollapsed('[apiFetch] response');
-    console.log('status:', resp.status, resp.statusText);
-    console.log('ok:', resp.ok);
-    console.log('url:', resp.url);
-    console.log('headers:', Object.fromEntries(resp.headers.entries()));
-    console.groupEnd();
+    console.log('[apiFetch] response status:', resp.status, resp.statusText);
 
     if (!resp.ok) {
         const text = await resp.text().catch(() => '');
@@ -52,15 +44,15 @@ export async function apiFetch(path, options = {}) {
         error.body = text;
         throw error;
     }
+
     const contentType = resp.headers.get('content-type') || '';
     if (contentType.includes('application/json')) {
         const json = await resp.json();
-        console.log('[apiFetch] json:', json);
+        console.log('[apiFetch] json response:', json);
         return json;
     }
+
     const text = await resp.text();
-    console.log('[apiFetch] text:', text);
+    console.log('[apiFetch] text response:', text);
     return text;
 }
-
-

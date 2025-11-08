@@ -163,15 +163,11 @@ const Book = ({ bookPath, title, initialFrom = 1, initialTo = 10 }) => {
 			<div className="page">
 				<div className="book-author">{header}</div>
 
-				{/* Тестовый текст для выделения */}
-				<div className="content-text" style={{ marginBottom: '24px' }}>
-					<p><strong>Тестовый фрагмент:</strong> выделите часть этого текста, чтобы увидеть плашку «Скопировать» и иконку закладки. Нажмите на закладку — текст уйдёт в заметки.</p>
-					<p>Это демонстрационный абзац. Он нужен только для проверки функционала выделения и добавления заметок. Можно выделить одно предложение или несколько строк подряд.</p>
-					<p>Когда закончите тест, этот блок можно удалить.</p>
-				</div>
-
 				{loading && <h1 className="chapter-title">Загрузка…</h1>}
 				{error && <h1 className="chapter-title">{error}</h1>}
+				{!loading && !error && pages.length === 0 && (
+					<h1 className="chapter-title">Книга не найдена или пуста</h1>
+				)}
 				{!loading && !error && pages.map((p, idx) => (
 					<div key={`${p.chapterTitle || 'chapter'}-${range.from + idx}`}>
 						<h1 className="chapter-title">{p.chapterTitle || `Глава ${range.from + idx}`}</h1>
