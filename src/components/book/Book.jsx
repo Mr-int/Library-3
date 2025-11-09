@@ -33,7 +33,6 @@ const Book = ({ currentPage, onTotalPagesChange }) => {
 	const containerRef = useRef(null);
 
 	const pagesCache = useRef(new Map());
-	const BUFFER_SIZE = 3;
 
 	useEffect(() => {
 		if (initialPage && initialPage !== currentPage) {
@@ -44,7 +43,7 @@ const Book = ({ currentPage, onTotalPagesChange }) => {
 	useEffect(() => {
 		let cancelled = false;
 
-		async function load() {
+		async function loadCurrentPage() {
 			if (!bookPath) {
 				setError('Не указан путь к книге');
 				return;
@@ -55,27 +54,13 @@ const Book = ({ currentPage, onTotalPagesChange }) => {
 				setPages([cachedData]);
 			}
 
-			const from = Math.max(1, currentPage - BUFFER_SIZE);
-			const to = Math.min(totalPages || 100, currentPage + BUFFER_SIZE);
-
-			const pagesToLoad = [];
-			for (let i = from; i <= to; i++) {
-				if (!pagesCache.current.has(i)) {
-					pagesToLoad.push(i);
-				}
-			}
-
-			if (pagesToLoad.length === 0) {
-				return;
-			}
-
 			setLoading(true);
 			setError('');
 			try {
-				const loadFrom = Math.min(...pagesToLoad);
-				const loadTo = Math.max(...pagesToLoad);
+				const from = currentPage;
+				const to = currentPage;
 
-				const data = await fetchEpubPages({ path: bookPath, from: loadFrom, to: loadTo });
+				const data = await fetchEpubPages({ path: bookPath, from, to });
 				if (cancelled) return;
 
 				const respTitle = data?.title || title || '';
@@ -84,13 +69,9 @@ const Book = ({ currentPage, onTotalPagesChange }) => {
 
 				setMeta({ title: respTitle, author: respAuthor });
 
-				respPages.forEach((page, index) => {
-					const pageNum = loadFrom + index;
-					pagesCache.current.set(pageNum, page);
-				});
-
-				if (pagesCache.current.has(currentPage)) {
-					setPages([pagesCache.current.get(currentPage)]);
+				if (respPages.length > 0) {
+					pagesCache.current.set(currentPage, respPages[0]);
+					setPages(respPages);
 				}
 
 				const total = data?.total || totalPages || 100;
@@ -106,59 +87,53 @@ const Book = ({ currentPage, onTotalPagesChange }) => {
 			}
 		}
 
-		load();
-	}, [bookPath, currentPage, title, totalPages, onTotalPagesChange]);
-
-	const getCacheBounds = () => {
-		const keys = Array.from(pagesCache.current.keys());
-		if (keys.length === 0) return { min: 0, max: 0 };
-		return {
-			min: Math.min(...keys),
-			max: Math.max(...keys)
-		};
-	};
-
-	const checkNavigationBounds = () => {
-		const bounds = getCacheBounds();
-		if (bounds.min === 0 && bounds.max === 0) return;
-
-		if (currentPage >= bounds.max - 1 && currentPage < totalPages) {
-			const from = currentPage + 1;
-			const to = Math.min(totalPages, currentPage + BUFFER_SIZE);
-			loadAdditionalPages(from, to);
-		}
-
-		if (currentPage <= bounds.min + 1 && currentPage > 1) {
-			const from = Math.max(1, currentPage - BUFFER_SIZE);
-			const to = currentPage - 1;
-			loadAdditionalPages(from, to);
-		}
-	};
-
-	const loadAdditionalPages = async (from, to) => {
-		if (!bookPath || from > to) return;
-
-		try {
-			const data = await fetchEpubPages({ path: bookPath, from, to });
-			const respPages = Array.isArray(data?.pages) ? data.pages : [];
-
-			respPages.forEach((page, index) => {
-				const pageNum = from + index;
-				pagesCache.current.set(pageNum, page);
-			});
-
-			const total = data?.total;
-			if (total && total !== totalPages) {
-				setTotalPages(total);
-				onTotalPagesChange(total);
-			}
-		} catch (e) {
-		}
-	};
+		loadCurrentPage();
+	}, [bookPath, currentPage, title, onTotalPagesChange]);
 
 	useEffect(() => {
-		checkNavigationBounds();
-	}, [currentPage]);
+		if (!bookPath || totalPages === 0) return;
+
+		const loadNextPages = async () => {
+			const from = currentPage + 1;
+			const to = Math.min(totalPages, currentPage + 2);
+
+			if (from > to) return;
+
+			try {
+				const data = await fetchEpubPages({ path: bookPath, from, to });
+				const respPages = Array.isArray(data?.pages) ? data.pages : [];
+
+				respPages.forEach((page, index) => {
+					const pageNum = from + index;
+					pagesCache.current.set(pageNum, page);
+				});
+			} catch (e) {
+				console.log('Ошибка загрузки следующих страниц:', e);
+			}
+		};
+
+		const loadPrevPages = async () => {
+			const from = Math.max(1, currentPage - 2);
+			const to = currentPage - 1;
+
+			if (from > to) return;
+
+			try {
+				const data = await fetchEpubPages({ path: bookPath, from, to });
+				const respPages = Array.isArray(data?.pages) ? data.pages : [];
+
+				respPages.forEach((page, index) => {
+					const pageNum = from + index;
+					pagesCache.current.set(pageNum, page);
+				});
+			} catch (e) {
+				console.log('Ошибка загрузки предыдущих страниц:', e);
+			}
+		};
+
+		loadNextPages();
+		loadPrevPages();
+	}, [currentPage, totalPages, bookPath]);
 
 	const header = meta.title && meta.author
 		? `${meta.title} — ${meta.author}`
