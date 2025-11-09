@@ -26,27 +26,18 @@ const Book = ({ currentPage, onTotalPagesChange }) => {
 	const [error, setError] = useState('');
 	const [meta, setMeta] = useState({ author: '', title: '' });
 	const [pages, setPages] = useState([]);
+	const [totalPages, setTotalPages] = useState(0);
 
 	const [tooltip, setTooltip] = useState({ visible: false, x: 0, y: 0, text: '' });
 	const containerRef = useRef(null);
 
-	const pagesCache = useRef(new Map());
-
-	// Загрузка текущей страницы
+	// Загрузка страниц
 	useEffect(() => {
 		let cancelled = false;
 
-		async function loadPage() {
+		async function loadPages() {
 			if (!bookPath) {
 				setError('Не указан путь к книге');
-				setLoading(false);
-				return;
-			}
-
-			// Если страница уже в кэше - показываем сразу
-			if (pagesCache.current.has(currentPage)) {
-				const cachedData = pagesCache.current.get(currentPage);
-				setPages([cachedData]);
 				setLoading(false);
 				return;
 			}
@@ -55,11 +46,15 @@ const Book = ({ currentPage, onTotalPagesChange }) => {
 			setError('');
 
 			try {
-				console.log('Загрузка страницы:', currentPage);
+				// Всегда загружаем диапазон вокруг текущей страницы
+				const from = Math.max(1, currentPage - 4);
+				const to = currentPage + 4;
+
+				console.log('Загрузка страниц:', { from, to, currentPage });
 				const data = await fetchEpubPages({
 					path: bookPath,
-					from: currentPage,
-					to: currentPage
+					from: from,
+					to: to
 				});
 
 				if (cancelled) return;
@@ -73,15 +68,21 @@ const Book = ({ currentPage, onTotalPagesChange }) => {
 				setMeta({ title: respTitle, author: respAuthor });
 
 				if (respPages.length > 0) {
-					pagesCache.current.set(currentPage, respPages[0]);
-					setPages(respPages);
+					// Находим данные для текущей страницы
+					const currentPageIndex = currentPage - from;
+					if (currentPageIndex >= 0 && currentPageIndex < respPages.length) {
+						setPages([respPages[currentPageIndex]]);
+					} else {
+						setError('Текущая страница не найдена в ответе');
+					}
 				} else {
-					setError('Страница не найдена');
+					setError('Страницы не найдены');
 				}
 
 				const total = data?.total;
-				if (total) {
+				if (total && total !== totalPages) {
 					console.log('Установлено общее количество страниц:', total);
+					setTotalPages(total);
 					onTotalPagesChange(total);
 				}
 			} catch (e) {
@@ -93,79 +94,8 @@ const Book = ({ currentPage, onTotalPagesChange }) => {
 			}
 		}
 
-		loadPage();
-	}, [bookPath, currentPage, title, onTotalPagesChange]);
-
-	// Предзагрузка соседних страниц
-	useEffect(() => {
-		if (!bookPath || loading) return;
-
-		async function preloadPages() {
-			try {
-				// Предзагрузка вперед
-				const nextFrom = currentPage + 1;
-				const nextTo = currentPage + 2;
-
-				if (nextFrom <= nextTo) {
-					const pagesToLoadNext = [];
-					for (let i = nextFrom; i <= nextTo; i++) {
-						if (!pagesCache.current.has(i)) {
-							pagesToLoadNext.push(i);
-						}
-					}
-
-					if (pagesToLoadNext.length > 0) {
-						console.log('Предзагрузка вперед:', pagesToLoadNext);
-						const data = await fetchEpubPages({
-							path: bookPath,
-							from: Math.min(...pagesToLoadNext),
-							to: Math.max(...pagesToLoadNext)
-						});
-
-						if (data?.pages) {
-							data.pages.forEach((page, index) => {
-								const pageNum = Math.min(...pagesToLoadNext) + index;
-								pagesCache.current.set(pageNum, page);
-							});
-						}
-					}
-				}
-
-				// Предзагрузка назад
-				const prevFrom = Math.max(1, currentPage - 2);
-				const prevTo = currentPage - 1;
-
-				if (prevFrom <= prevTo) {
-					const pagesToLoadPrev = [];
-					for (let i = prevFrom; i <= prevTo; i++) {
-						if (!pagesCache.current.has(i)) {
-							pagesToLoadPrev.push(i);
-						}
-					}
-
-					if (pagesToLoadPrev.length > 0) {
-						console.log('Предзагрузка назад:', pagesToLoadPrev);
-						const data = await fetchEpubPages({
-							path: bookPath,
-							from: Math.min(...pagesToLoadPrev),
-							to: Math.max(...pagesToLoadPrev)
-						});
-
-						if (data?.pages) {
-							data.pages.forEach((page, index) => {
-								const pageNum = Math.min(...pagesToLoadPrev) + index;
-								pagesCache.current.set(pageNum, page);
-							});
-						}
-					}
-				}
-			} catch (e) {
-				console.log('Ошибка предзагрузки:', e);
-			}
-		}
-
-		preloadPages();
-	}, [currentPage, bookPath, loading]);
+		loadPages();
+	}, [bookPath, currentPage, title, onTotalPagesChange, totalPages]);
 
 	const header = meta.title && meta.author
 		? `${meta.title} — ${meta.author}`
