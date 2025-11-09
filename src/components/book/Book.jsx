@@ -31,7 +31,11 @@ const Book = ({ currentPage, onTotalPagesChange }) => {
 	const [tooltip, setTooltip] = useState({ visible: false, x: 0, y: 0, text: '' });
 	const containerRef = useRef(null);
 
-	// Загрузка страниц
+	const formatBookTitle = (title) => {
+		if (!title) return '';
+		return title.replace(/%20/g, ' ').replace(/_/g, ' ');
+	};
+
 	useEffect(() => {
 		let cancelled = false;
 
@@ -46,11 +50,9 @@ const Book = ({ currentPage, onTotalPagesChange }) => {
 			setError('');
 
 			try {
-				// Всегда загружаем диапазон вокруг текущей страницы
 				const from = Math.max(1, currentPage - 4);
 				const to = currentPage + 4;
 
-				console.log('Загрузка страниц:', { from, to, currentPage });
 				const data = await fetchEpubPages({
 					path: bookPath,
 					from: from,
@@ -59,8 +61,6 @@ const Book = ({ currentPage, onTotalPagesChange }) => {
 
 				if (cancelled) return;
 
-				console.log('Получены данные:', data);
-
 				const respTitle = data?.title || title || '';
 				const respAuthor = data?.author || '';
 				const respPages = Array.isArray(data?.pages) ? data.pages : [];
@@ -68,7 +68,6 @@ const Book = ({ currentPage, onTotalPagesChange }) => {
 				setMeta({ title: respTitle, author: respAuthor });
 
 				if (respPages.length > 0) {
-					// Находим данные для текущей страницы
 					const currentPageIndex = currentPage - from;
 					if (currentPageIndex >= 0 && currentPageIndex < respPages.length) {
 						setPages([respPages[currentPageIndex]]);
@@ -81,13 +80,11 @@ const Book = ({ currentPage, onTotalPagesChange }) => {
 
 				const total = data?.total;
 				if (total && total !== totalPages) {
-					console.log('Установлено общее количество страниц:', total);
 					setTotalPages(total);
 					onTotalPagesChange(total);
 				}
 			} catch (e) {
 				if (cancelled) return;
-				console.error('Ошибка загрузки:', e);
 				setError(e?.message || 'Ошибка загрузки книги');
 			} finally {
 				if (!cancelled) setLoading(false);
@@ -97,9 +94,10 @@ const Book = ({ currentPage, onTotalPagesChange }) => {
 		loadPages();
 	}, [bookPath, currentPage, title, onTotalPagesChange, totalPages]);
 
-	const header = meta.title && meta.author
-		? `${meta.title} — ${meta.author}`
-		: (meta.title || title || 'Книга');
+	const displayTitle = formatBookTitle(meta.title || title);
+	const header = displayTitle && meta.author
+		? `${displayTitle} — ${meta.author}`
+		: (displayTitle || 'Книга');
 
 	const currentPageData = pages[0] || [];
 
@@ -196,7 +194,7 @@ const Book = ({ currentPage, onTotalPagesChange }) => {
 		}
 		try {
 			addNote({
-				bookTitle: meta.title || title || 'Книга',
+				bookTitle: displayTitle || 'Книга',
 				author: meta.author || '',
 				text
 			});
