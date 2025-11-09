@@ -56,14 +56,26 @@
     z-index: 1;
 }
 
-.search-highlight {
-    background-color: rgba(255, 255, 0, 0.3);
-    border: 1px solid #ffeb3b;
+[data-theme="light"] .search-highlight {
+    background-color: rgba(147, 112, 219, 0.3);
+    border: 1px solid #9370db;
     border-radius: 2px;
 }
 
-.search-current-highlight {
-    background-color: rgba(255, 165, 0, 0.4);
-    border: 1px solid #ff9800;
+[data-theme="light"] .search-current-highlight {
+    background-color: rgba(138, 43, 226, 0.4);
+    border: 1px solid #8a2be2;
+    border-radius: 2px;
+}
+
+[data-theme="dark"] .search-highlight {
+    background-color: rgba(50, 205, 50, 0.3);
+    border: 1px solid #32cd32;
+    border-radius: 2px;
+}
+
+[data-theme="dark"] .search-current-highlight {
+    background-color: rgba(0, 255, 0, 0.4);
+    border: 1px solid #00ff00;
     border-radius: 2px;
 }

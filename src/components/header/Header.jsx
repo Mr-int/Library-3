@@ -16,11 +16,9 @@ const Header = ({ theme = 'dark', setTheme, fontSize = 'medium', setFontSize }) 
     const [isClosing, setIsClosing] = useState(false);
     const [showNotes, setShowNotes] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
-    const [searchResults, setSearchResults] = useState([]);
-    const [currentResultIndex, setCurrentResultIndex] = useState(0);
 
     const searchInputRef = useRef(null);
-    const searchMarkers = useRef([]);
+    const searchTimeoutRef = useRef(null);
 
     const handleCloseSite = () => {
         if (window.confirm('Вы уверены, что хотите закрыть приложение?')) {
@@ -31,167 +29,94 @@ const Header = ({ theme = 'dark', setTheme, fontSize = 'medium', setFontSize }) 
         }
     };
 
+    const handleSearchChange = (e) => {
+        const query = e.target.value;
+        setSearchQuery(query);
+
+        if (searchTimeoutRef.current) {
+            clearTimeout(searchTimeoutRef.current);
+        }
+
+        performSearch(query);
+    };
+
     const performSearch = (query) => {
         clearSearchHighlights();
 
         if (!query.trim()) {
-            setSearchResults([]);
-            setCurrentResultIndex(0);
             return;
         }
 
         const contentElements = document.querySelectorAll('.content-text');
-        const results = [];
-        const markers = [];
 
-        contentElements.forEach((element, elementIndex) => {
-            const text = element.textContent || element.innerText;
-            const regex = new RegExp(query, 'gi');
-            let match;
-
-            while ((match = regex.exec(text)) !== null) {
-                results.push({
-                    element: element,
-                    index: match.index,
-                    length: match[0].length,
-                    elementIndex: elementIndex
-                });
-            }
-
-            highlightTextInElement(element, query, markers);
+        contentElements.forEach((element) => {
+            highlightTextInElement(element, query);
         });
+    };
 
-        setSearchResults(results);
-        setCurrentResultIndex(results.length > 0 ? 0 : -1);
+    const highlightTextInElement = (element, query) => {
+        const text = element.textContent || element.innerText;
+        const regex = new RegExp(`(${escapeRegExp(query)})`, 'gi');
 
-        if (results.length > 0) {
-            scrollToResult(results[0]);
+        if (regex.test(text)) {
+            const newHtml = text.replace(regex, '<mark class="search-highlight">$1</mark>');
+            element.innerHTML = newHtml;
         }
     };
 
-    const highlightTextInElement = (element, query, markers) => {
-        const text = element.innerHTML;
-        const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
-
-        const newHtml = text.replace(regex, '<mark class="search-highlight">$1</mark>');
-        element.innerHTML = newHtml;
-
-        markers.push(element);
+    const escapeRegExp = (string) => {
+        return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     };
 
     const clearSearchHighlights = () => {
-        searchMarkers.current.forEach(element => {
+        const contentElements = document.querySelectorAll('.content-text');
+        contentElements.forEach(element => {
             if (element && element.innerHTML) {
-                element.innerHTML = element.innerHTML.replace(
-                    /<mark class="search-highlight">([^<]*)<\/mark>/gi,
-                    '$1'
-                );
-                element.innerHTML = element.innerHTML.replace(
-                    /<mark class="search-current-highlight">([^<]*)<\/mark>/gi,
-                    '$1'
-                );
+                const originalHtml = element.getAttribute('data-original-html');
+                if (originalHtml) {
+                    element.innerHTML = originalHtml;
+                }
             }
         });
-        searchMarkers.current = [];
     };
 
-    const scrollToResult = (result) => {
-        if (!result) return;
-
-        const range = document.createRange();
-        const textNode = findTextNode(result.element, result.index);
-
-        if (textNode) {
-            range.setStart(textNode, result.index);
-            range.setEnd(textNode, result.index + result.length);
-
-            clearSearchHighlights();
-            highlightCurrentResult(result);
-
-            const rect = range.getBoundingClientRect();
-            const container = document.querySelector('.book-content');
-
-            if (container) {
-                container.scrollTop = rect.top + container.scrollTop - 100;
-            }
-
-            range.detach();
-        }
-    };
-
-    const findTextNode = (element, index) => {
-        const walk = document.createTreeWalker(
-            element,
-            NodeFilter.SHOW_TEXT,
-            null,
-            false
-        );
-
-        let currentIndex = 0;
-        let node;
-
-        while (node = walk.nextNode()) {
-            if (currentIndex + node.textContent.length >= index) {
-                return node;
-            }
-            currentIndex += node.textContent.length;
-        }
-
-        return null;
-    };
-
-    const highlightCurrentResult = (result) => {
-        if (!result.element) return;
-
-        const text = result.element.innerHTML;
-        const query = searchQuery;
-        const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-        let currentIndex = 0;
-        const regex = new RegExp(escapedQuery, 'gi');
-
-        const newHtml = text.replace(regex, (match, offset) => {
-            currentIndex++;
-            if (currentIndex === result.elementIndex + 1) {
-                return `<mark class="search-current-highlight">${match}</mark>`;
-            } else {
-                return `<mark class="search-highlight">${match}</mark>`;
+    const saveOriginalHTML = () => {
+        const contentElements = document.querySelectorAll('.content-text');
+        contentElements.forEach(element => {
+            if (!element.getAttribute('data-original-html')) {
+                element.setAttribute('data-original-html', element.innerHTML);
             }
         });
-
-        result.element.innerHTML = newHtml;
-        searchMarkers.current.push(result.element);
-    };
-
-    const navigateResults = (direction) => {
-        if (searchResults.length === 0) return;
-
-        let newIndex;
-        if (direction === 'next') {
-            newIndex = (currentResultIndex + 1) % searchResults.length;
-        } else {
-            newIndex = (currentResultIndex - 1 + searchResults.length) % searchResults.length;
-        }
-
-        setCurrentResultIndex(newIndex);
-        scrollToResult(searchResults[newIndex]);
-    };
-
-    const handleSearchChange = (e) => {
-        const query = e.target.value;
-        setSearchQuery(query);
-        performSearch(query);
     };
 
     const handleSearchKeyDown = (e) => {
-        if (e.key === 'Enter') {
-            navigateResults('next');
-        } else if (e.key === 'Escape') {
+        if (e.key === 'Escape') {
             setSearchQuery('');
             clearSearchHighlights();
-            setSearchResults([]);
+            const contentElements = document.querySelectorAll('.content-text');
+            contentElements.forEach(element => {
+                const originalHtml = element.getAttribute('data-original-html');
+                if (originalHtml) {
+                    element.innerHTML = originalHtml;
+                }
+            });
         }
     };
+
+    useEffect(() => {
+        saveOriginalHTML();
+
+        const timeoutId = setTimeout(() => {
+            saveOriginalHTML();
+        }, 1000);
+
+        return () => {
+            clearTimeout(timeoutId);
+            if (searchTimeoutRef.current) {
+                clearTimeout(searchTimeoutRef.current);
+            }
+        };
+    }, []);
 
     const openPanel = () => {
         setPanel(true);
@@ -221,12 +146,6 @@ const Header = ({ theme = 'dark', setTheme, fontSize = 'medium', setFontSize }) 
         }
     };
 
-    useEffect(() => {
-        return () => {
-            clearSearchHighlights();
-        };
-    }, []);
-
     return (
         <header className="header">
             <div className="header__nav">
@@ -244,18 +163,6 @@ const Header = ({ theme = 'dark', setTheme, fontSize = 'medium', setFontSize }) 
                         onKeyDown={handleSearchKeyDown}
                         ref={searchInputRef}
                     />
-                    {searchResults.length > 0 && (
-                        <div style={{
-                            position: 'absolute',
-                            right: '8px',
-                            top: '50%',
-                            transform: 'translateY(-50%)',
-                            fontSize: '12px',
-                            color: '#9c9c9c'
-                        }}>
-                            {currentResultIndex + 1}/{searchResults.length}
-                        </div>
-                    )}
                 </div>
             </div>
 
