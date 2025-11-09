@@ -26,7 +26,7 @@ const Book = ({ currentPage, onTotalPagesChange }) => {
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState('');
 	const [meta, setMeta] = useState({ author: '', title: '' });
-	const [pages, setPages] = useState([]);
+	const [pages, setPages] = useState({});
 	const [totalPages, setTotalPages] = useState(0);
 
 	const [tooltip, setTooltip] = useState({ visible: false, x: 0, y: 0, text: '' });
@@ -46,6 +46,10 @@ const Book = ({ currentPage, onTotalPagesChange }) => {
 				return;
 			}
 
+			if (pages[currentPage]) {
+				return;
+			}
+
 			setLoading(true);
 			setError('');
 			try {
@@ -60,7 +64,13 @@ const Book = ({ currentPage, onTotalPagesChange }) => {
 				const respPages = Array.isArray(data?.pages) ? data.pages : [];
 
 				setMeta({ title: respTitle, author: respAuthor });
-				setPages(respPages);
+
+				if (respPages.length > 0) {
+					setPages(prev => ({
+						...prev,
+						[currentPage]: respPages[0]
+					}));
+				}
 
 				const total = data?.total || 100;
 				setTotalPages(total);
@@ -80,7 +90,7 @@ const Book = ({ currentPage, onTotalPagesChange }) => {
 		? `${meta.title} — ${meta.author}`
 		: (meta.title || title || 'Книга');
 
-	const currentPageData = pages[currentPage - 1] || [];
+	const currentPageData = pages[currentPage] || [];
 
 	const getSelectionText = () => {
 		const sel = window.getSelection && window.getSelection();
@@ -219,7 +229,7 @@ const Book = ({ currentPage, onTotalPagesChange }) => {
 						</code>
 					</div>
 				)}
-				{!loading && !error && bookPath && pages.length === 0 && (
+				{!loading && !error && bookPath && !currentPageData && (
 					<h1 className="chapter-title">Книга не найдена или пуста</h1>
 				)}
 

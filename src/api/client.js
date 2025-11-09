@@ -1,4 +1,4 @@
-const DEFAULT_BASE_URL = '/api';
+const DEFAULT_BASE_URL = 'http://10.100.10.203:8080/api';
 
 export function getBaseUrl() {
     return DEFAULT_BASE_URL;
