@@ -102,9 +102,13 @@ const Book = ({ currentPage, onTotalPagesChange }) => {
 	const currentPageData = pages[0] || [];
 
 	const getSelectionText = () => {
-		const sel = window.getSelection && window.getSelection();
-		if (!sel || sel.isCollapsed) return '';
-		return sel.toString().trim();
+		const selection = window.getSelection();
+		if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+			return '';
+		}
+
+		const text = selection.toString().trim();
+		return text.length > 0 ? text : '';
 	};
 
 	const showSelectionTooltip = () => {
@@ -113,74 +117,87 @@ const Book = ({ currentPage, onTotalPagesChange }) => {
 			hideTooltip();
 			return;
 		}
-		const sel = window.getSelection();
-		if (!sel || sel.rangeCount === 0) return;
-		const rangeObj = sel.getRangeAt(0);
-		const rect = rangeObj.getBoundingClientRect();
+
+		const selection = window.getSelection();
+		if (!selection || selection.rangeCount === 0) return;
+
+		const range = selection.getRangeAt(0);
+		const rect = range.getBoundingClientRect();
 		const container = containerRef.current;
+
 		if (!container) return;
+
 		const containerRect = container.getBoundingClientRect();
 
-		const x = Math.min(
-			Math.max(rect.left + rect.width / 2, containerRect.left + 12),
-			containerRect.right - 12
-		);
-		const y = Math.max(rect.top, containerRect.top + 12);
+		// Позиционируем плашку над выделенным текстом
+		const x = rect.left + (rect.width / 2) - containerRect.left;
+		const y = rect.top - containerRect.top - 50; // Поднимаем выше выделения
 
 		setTooltip({
 			visible: true,
-			x: x - containerRect.left,
-			y: y - containerRect.top,
+			x: Math.max(60, Math.min(x, containerRect.width - 60)), // Ограничиваем по краям
+			y: Math.max(10, y),
 			text
 		});
 	};
 
 	const hideTooltip = () => {
-		setTooltip(prev => prev.visible ? { ...prev, visible: false } : prev);
+		setTooltip(prev => ({ ...prev, visible: false }));
 	};
 
 	useEffect(() => {
-		const handleMouseUp = (e) => {
-			const content = containerRef.current?.querySelector('.content-text');
-			if (!content) return;
-			if (content.contains(e.target)) {
-				setTimeout(showSelectionTooltip, 0);
-			} else {
+		const handleMouseUp = () => {
+			setTimeout(() => {
+				const text = getSelectionText();
+				if (text) {
+					showSelectionTooltip();
+				} else {
+					hideTooltip();
+				}
+			}, 50);
+		};
+
+		const handleClick = (e) => {
+			// Скрываем плашку при клике вне её
+			if (!e.target.closest('.selection-tooltip')) {
 				hideTooltip();
 			}
 		};
 
-		const handleScroll = () => hideTooltip();
+		const handleScroll = () => {
+			hideTooltip();
+			window.getSelection()?.removeAllRanges();
+		};
 
 		document.addEventListener('mouseup', handleMouseUp);
-		containerRef.current?.addEventListener('scroll', handleScroll, { passive: true });
+		document.addEventListener('click', handleClick);
+		document.addEventListener('scroll', handleScroll, true);
 
 		return () => {
 			document.removeEventListener('mouseup', handleMouseUp);
-			containerRef.current?.removeEventListener('scroll', handleScroll);
+			document.removeEventListener('click', handleClick);
+			document.removeEventListener('scroll', handleScroll, true);
 		};
 	}, []);
 
 	const handleCopy = async () => {
 		const text = tooltip.text;
-		if (!text) {
-			alert('Нет выделенного текста');
-			return;
-		}
+		if (!text) return;
+
 		try {
 			await navigator.clipboard.writeText(text);
 			alert('Скопировано');
 		} catch (e) {
 			try {
-				const ta = document.createElement('textarea');
-				ta.value = text;
-				ta.style.position = 'fixed';
-				ta.style.opacity = '0';
-				document.body.appendChild(ta);
-				ta.select();
+				const textArea = document.createElement('textarea');
+				textArea.value = text;
+				textArea.style.position = 'fixed';
+				textArea.style.opacity = '0';
+				document.body.appendChild(textArea);
+				textArea.select();
 				document.execCommand('copy');
-				document.body.removeChild(ta);
-				alert('Скопировано (fallback)');
+				document.body.removeChild(textArea);
+				alert('Скопировано');
 			} catch (err) {
 				alert('Не удалось скопировать');
 			}
@@ -191,22 +208,22 @@ const Book = ({ currentPage, onTotalPagesChange }) => {
 
 	const handleBookmark = () => {
 		const text = tooltip.text;
-		if (!text) {
-			alert('Нет выделенного текста');
-			return;
-		}
+		if (!text) return;
+
 		try {
 			const success = addNote({
 				bookTitle: displayTitle || 'Книга',
 				author: meta.author || '',
-				text
+				text: text
 			});
+
 			if (success) {
 				alert('Добавлено в заметки');
 			} else {
 				alert('Не удалось добавить в заметки');
 			}
 		} catch (e) {
+			console.error('Ошибка добавления заметки:', e);
 			alert('Ошибка при добавлении в заметки');
 		}
 		hideTooltip();
@@ -268,14 +285,16 @@ const Book = ({ currentPage, onTotalPagesChange }) => {
 			{tooltip.visible && (
 				<div
 					className="selection-tooltip"
-					style={{ left: `${tooltip.x}px`, top: `${tooltip.y}px` }}
+					style={{
+						left: `${tooltip.x}px`,
+						top: `${tooltip.y}px`
+					}}
 					onMouseDown={(e) => e.preventDefault()}
 				>
 					<button className="selection-btn" onClick={handleCopy}>Скопировать</button>
 					<div className="selection-sep"></div>
 					<button className="selection-btn" onClick={handleBookmark}>
 						<img
-							className="selection-icon"
 							src={bookmarkImg}
 							alt="В заметки"
 							width="18"
