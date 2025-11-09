@@ -32,6 +32,8 @@ const Book = ({ currentPage, onTotalPagesChange }) => {
 	const [tooltip, setTooltip] = useState({ visible: false, x: 0, y: 0, text: '' });
 	const containerRef = useRef(null);
 
+	const pagesCache = useRef(new Map());
+
 	useEffect(() => {
 		if (initialPage && initialPage !== currentPage) {
 			onTotalPagesChange(initialPage);
@@ -40,9 +42,16 @@ const Book = ({ currentPage, onTotalPagesChange }) => {
 
 	useEffect(() => {
 		let cancelled = false;
+
 		async function load() {
 			if (!bookPath) {
 				setError('Не указан путь к книге');
+				return;
+			}
+
+			if (pagesCache.current.has(currentPage)) {
+				const cachedData = pagesCache.current.get(currentPage);
+				setPages([cachedData]);
 				return;
 			}
 
@@ -60,7 +69,11 @@ const Book = ({ currentPage, onTotalPagesChange }) => {
 				const respPages = Array.isArray(data?.pages) ? data.pages : [];
 
 				setMeta({ title: respTitle, author: respAuthor });
-				setPages(respPages);
+
+				if (respPages.length > 0) {
+					pagesCache.current.set(currentPage, respPages[0]);
+					setPages(respPages);
+				}
 
 				const total = data?.total || 100;
 				setTotalPages(total);
@@ -72,9 +85,46 @@ const Book = ({ currentPage, onTotalPagesChange }) => {
 				if (!cancelled) setLoading(false);
 			}
 		}
+
 		load();
 		return () => { cancelled = true; };
 	}, [bookPath, currentPage, title, onTotalPagesChange]);
+
+	const loadPageRange = async (startPage, endPage) => {
+		if (!bookPath) return;
+
+		try {
+			const data = await fetchEpubPages({ path: bookPath, from: startPage, to: endPage });
+			const respPages = Array.isArray(data?.pages) ? data.pages : [];
+
+			respPages.forEach((page, index) => {
+				const pageNum = startPage + index;
+				pagesCache.current.set(pageNum, page);
+			});
+
+			if (pagesCache.current.has(currentPage)) {
+				setPages([pagesCache.current.get(currentPage)]);
+			}
+
+		} catch (e) {
+		}
+	};
+
+	useEffect(() => {
+		if (currentPage > 1) {
+			const prevPage = currentPage - 1;
+			if (!pagesCache.current.has(prevPage)) {
+				loadPageRange(prevPage, prevPage);
+			}
+		}
+
+		if (currentPage < totalPages) {
+			const nextPage = currentPage + 1;
+			if (!pagesCache.current.has(nextPage)) {
+				loadPageRange(nextPage, nextPage);
+			}
+		}
+	}, [currentPage, totalPages, bookPath]);
 
 	const header = meta.title && meta.author
 		? `${meta.title} — ${meta.author}`

@@ -1,4 +1,4 @@
-const DEFAULT_BASE_URL = '/api';
+const DEFAULT_BASE_URL = 'https://api.librarysin.ru/api';
 
 export function getBaseUrl() {
     return DEFAULT_BASE_URL;
