@@ -109,17 +109,26 @@ const Book = ({ currentPage, onTotalPagesChange }) => {
 		load();
 	}, [bookPath, currentPage, title, totalPages, onTotalPagesChange]);
 
-	const checkNavigationBounds = () => {
-		const maxLoadedPage = Math.max(...Array.from(pagesCache.current.keys()));
-		const minLoadedPage = Math.min(...Array.from(pagesCache.current.keys()));
+	const getCacheBounds = () => {
+		const keys = Array.from(pagesCache.current.keys());
+		if (keys.length === 0) return { min: 0, max: 0 };
+		return {
+			min: Math.min(...keys),
+			max: Math.max(...keys)
+		};
+	};
 
-		if (currentPage >= maxLoadedPage - 1 && currentPage < totalPages) {
+	const checkNavigationBounds = () => {
+		const bounds = getCacheBounds();
+		if (bounds.min === 0 && bounds.max === 0) return;
+
+		if (currentPage >= bounds.max - 1 && currentPage < totalPages) {
 			const from = currentPage + 1;
 			const to = Math.min(totalPages, currentPage + BUFFER_SIZE);
 			loadAdditionalPages(from, to);
 		}
 
-		if (currentPage <= minLoadedPage + 1 && currentPage > 1) {
+		if (currentPage <= bounds.min + 1 && currentPage > 1) {
 			const from = Math.max(1, currentPage - BUFFER_SIZE);
 			const to = currentPage - 1;
 			loadAdditionalPages(from, to);
@@ -144,7 +153,6 @@ const Book = ({ currentPage, onTotalPagesChange }) => {
 				onTotalPagesChange(total);
 			}
 		} catch (e) {
-			console.error('Ошибка загрузки дополнительных страниц:', e);
 		}
 	};
 
