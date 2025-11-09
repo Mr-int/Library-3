@@ -6,9 +6,16 @@ const NotesPanel = ({ onClose }) => {
 	const [notes, setNotes] = useState([]);
 
 	useEffect(() => {
-		const load = () => setNotes(getNotes());
+		const load = () => {
+			const loadedNotes = getNotes();
+			console.log('Загружены заметки:', loadedNotes); // Отладка
+			setNotes(loadedNotes);
+		};
 		load();
-		const onUpdated = () => load();
+		const onUpdated = () => {
+			console.log('Событие notes:updated получено'); // Отладка
+			load();
+		};
 		window.addEventListener('notes:updated', onUpdated);
 		return () => window.removeEventListener('notes:updated', onUpdated);
 	}, []);
@@ -17,7 +24,7 @@ const NotesPanel = ({ onClose }) => {
 		<div className="NotesPanelOverlay" onClick={onClose}>
 			<div className="NotesPanel" onClick={(e) => e.stopPropagation()}>
 				<div className="notes-header">
-					<h3 className="notes-title">Заметки</h3>
+					<h3 className="notes-title">Заметки ({notes.length})</h3>
 					<button className="notes-close" onClick={onClose} aria-label="Закрыть">×</button>
 				</div>
 				<div className="notes-list">
