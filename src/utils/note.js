@@ -22,9 +22,7 @@ export const addNote = (noteData) => {
 		const updatedNotes = [newNote, ...notes];
 		localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedNotes));
 
-		// Важно: вызываем событие после сохранения
 		window.dispatchEvent(new CustomEvent('notes:updated'));
-		console.log('Заметка добавлена:', newNote); // Отладка
 
 		return true;
 	} catch (e) {

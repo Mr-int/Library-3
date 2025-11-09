@@ -140,7 +140,7 @@ const Book = ({ currentPage, onTotalPagesChange }) => {
 	};
 
 	useEffect(() => {
-		const onMouseUp = (e) => {
+		const handleMouseUp = (e) => {
 			const content = containerRef.current?.querySelector('.content-text');
 			if (!content) return;
 			if (content.contains(e.target)) {
@@ -149,12 +149,15 @@ const Book = ({ currentPage, onTotalPagesChange }) => {
 				hideTooltip();
 			}
 		};
-		const onScroll = () => hideTooltip();
-		document.addEventListener('mouseup', onMouseUp);
-		containerRef.current?.addEventListener('scroll', onScroll, { passive: true });
+
+		const handleScroll = () => hideTooltip();
+
+		document.addEventListener('mouseup', handleMouseUp);
+		containerRef.current?.addEventListener('scroll', handleScroll, { passive: true });
+
 		return () => {
-			document.removeEventListener('mouseup', onMouseUp);
-			containerRef.current?.removeEventListener('scroll', onScroll);
+			document.removeEventListener('mouseup', handleMouseUp);
+			containerRef.current?.removeEventListener('scroll', handleScroll);
 		};
 	}, []);
 
@@ -193,14 +196,18 @@ const Book = ({ currentPage, onTotalPagesChange }) => {
 			return;
 		}
 		try {
-			addNote({
+			const success = addNote({
 				bookTitle: displayTitle || 'Книга',
 				author: meta.author || '',
 				text
 			});
-			alert('Добавлено в заметки');
+			if (success) {
+				alert('Добавлено в заметки');
+			} else {
+				alert('Не удалось добавить в заметки');
+			}
 		} catch (e) {
-			alert('Не удалось добавить в заметки');
+			alert('Ошибка при добавлении в заметки');
 		}
 		hideTooltip();
 		window.getSelection()?.removeAllRanges();
@@ -266,14 +273,15 @@ const Book = ({ currentPage, onTotalPagesChange }) => {
 				>
 					<button className="selection-btn" onClick={handleCopy}>Скопировать</button>
 					<div className="selection-sep"></div>
-					<img
-						className="selection-icon"
-						src={bookmarkImg}
-						alt="В заметки"
-						width="18"
-						height="18"
-						onClick={handleBookmark}
-					/>
+					<button className="selection-btn" onClick={handleBookmark}>
+						<img
+							className="selection-icon"
+							src={bookmarkImg}
+							alt="В заметки"
+							width="18"
+							height="18"
+						/>
+					</button>
 				</div>
 			)}
 		</div>

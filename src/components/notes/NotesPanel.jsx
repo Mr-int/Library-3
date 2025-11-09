@@ -6,16 +6,9 @@ const NotesPanel = ({ onClose }) => {
 	const [notes, setNotes] = useState([]);
 
 	useEffect(() => {
-		const load = () => {
-			const loadedNotes = getNotes();
-			console.log('Загружены заметки:', loadedNotes); // Отладка
-			setNotes(loadedNotes);
-		};
+		const load = () => setNotes(getNotes());
 		load();
-		const onUpdated = () => {
-			console.log('Событие notes:updated получено'); // Отладка
-			load();
-		};
+		const onUpdated = () => load();
 		window.addEventListener('notes:updated', onUpdated);
 		return () => window.removeEventListener('notes:updated', onUpdated);
 	}, []);
