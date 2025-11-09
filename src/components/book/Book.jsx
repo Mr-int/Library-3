@@ -33,7 +33,7 @@ const Book = ({ currentPage, onTotalPagesChange }) => {
 	const containerRef = useRef(null);
 
 	const pagesCache = useRef(new Map());
-	const lastLoadedRange = useRef({ from: 0, to: 0 });
+	const BUFFER_SIZE = 3;
 
 	useEffect(() => {
 		if (initialPage && initialPage !== currentPage) {
@@ -55,26 +55,27 @@ const Book = ({ currentPage, onTotalPagesChange }) => {
 				setPages([cachedData]);
 			}
 
-			const shouldLoad = !pagesCache.current.has(currentPage) ||
-				!pagesCache.current.has(currentPage + 1) ||
-				!pagesCache.current.has(currentPage + 2);
+			const from = Math.max(1, currentPage - BUFFER_SIZE);
+			const to = Math.min(totalPages || 100, currentPage + BUFFER_SIZE);
 
-			if (!shouldLoad) {
+			const pagesToLoad = [];
+			for (let i = from; i <= to; i++) {
+				if (!pagesCache.current.has(i)) {
+					pagesToLoad.push(i);
+				}
+			}
+
+			if (pagesToLoad.length === 0) {
 				return;
 			}
 
 			setLoading(true);
 			setError('');
 			try {
-				const from = currentPage;
-				const to = currentPage + 2;
+				const loadFrom = Math.min(...pagesToLoad);
+				const loadTo = Math.max(...pagesToLoad);
 
-				if (lastLoadedRange.current.from === from && lastLoadedRange.current.to === to) {
-					setLoading(false);
-					return;
-				}
-
-				const data = await fetchEpubPages({ path: bookPath, from, to });
+				const data = await fetchEpubPages({ path: bookPath, from: loadFrom, to: loadTo });
 				if (cancelled) return;
 
 				const respTitle = data?.title || title || '';
@@ -84,19 +85,19 @@ const Book = ({ currentPage, onTotalPagesChange }) => {
 				setMeta({ title: respTitle, author: respAuthor });
 
 				respPages.forEach((page, index) => {
-					const pageNum = from + index;
+					const pageNum = loadFrom + index;
 					pagesCache.current.set(pageNum, page);
 				});
-
-				lastLoadedRange.current = { from, to };
 
 				if (pagesCache.current.has(currentPage)) {
 					setPages([pagesCache.current.get(currentPage)]);
 				}
 
-				const total = data?.total || 100;
-				setTotalPages(total);
-				onTotalPagesChange(total);
+				const total = data?.total || totalPages || 100;
+				if (total !== totalPages) {
+					setTotalPages(total);
+					onTotalPagesChange(total);
+				}
 			} catch (e) {
 				if (cancelled) return;
 				setError(e?.message || 'Ошибка загрузки книги');
@@ -106,38 +107,50 @@ const Book = ({ currentPage, onTotalPagesChange }) => {
 		}
 
 		load();
-	}, [bookPath, currentPage, title, onTotalPagesChange]);
+	}, [bookPath, currentPage, title, totalPages, onTotalPagesChange]);
 
-	const reloadCurrentPage = async () => {
-		if (!bookPath) return;
+	const checkNavigationBounds = () => {
+		const maxLoadedPage = Math.max(...Array.from(pagesCache.current.keys()));
+		const minLoadedPage = Math.min(...Array.from(pagesCache.current.keys()));
 
-		setLoading(true);
-		try {
-			const from = currentPage;
-			const to = currentPage;
+		if (currentPage >= maxLoadedPage - 1 && currentPage < totalPages) {
+			const from = currentPage + 1;
+			const to = Math.min(totalPages, currentPage + BUFFER_SIZE);
+			loadAdditionalPages(from, to);
+		}
 
-			const data = await fetchEpubPages({ path: bookPath, from, to });
-
-			const respTitle = data?.title || title || '';
-			const respAuthor = data?.author || '';
-			const respPages = Array.isArray(data?.pages) ? data.pages : [];
-
-			setMeta({ title: respTitle, author: respAuthor });
-
-			if (respPages.length > 0) {
-				pagesCache.current.set(currentPage, respPages[0]);
-				setPages(respPages);
-			}
-
-			const total = data?.total || 100;
-			setTotalPages(total);
-			onTotalPagesChange(total);
-		} catch (e) {
-			setError(e?.message || 'Ошибка загрузки книги');
-		} finally {
-			setLoading(false);
+		if (currentPage <= minLoadedPage + 1 && currentPage > 1) {
+			const from = Math.max(1, currentPage - BUFFER_SIZE);
+			const to = currentPage - 1;
+			loadAdditionalPages(from, to);
 		}
 	};
+
+	const loadAdditionalPages = async (from, to) => {
+		if (!bookPath || from > to) return;
+
+		try {
+			const data = await fetchEpubPages({ path: bookPath, from, to });
+			const respPages = Array.isArray(data?.pages) ? data.pages : [];
+
+			respPages.forEach((page, index) => {
+				const pageNum = from + index;
+				pagesCache.current.set(pageNum, page);
+			});
+
+			const total = data?.total;
+			if (total && total !== totalPages) {
+				setTotalPages(total);
+				onTotalPagesChange(total);
+			}
+		} catch (e) {
+			console.error('Ошибка загрузки дополнительных страниц:', e);
+		}
+	};
+
+	useEffect(() => {
+		checkNavigationBounds();
+	}, [currentPage]);
 
 	const header = meta.title && meta.author
 		? `${meta.title} — ${meta.author}`
@@ -272,14 +285,7 @@ const Book = ({ currentPage, onTotalPagesChange }) => {
 				<div className="book-author">{header}</div>
 
 				{loading && <h1 className="chapter-title">Загрузка…</h1>}
-				{error && (
-					<div>
-						<h1 className="chapter-title">{error}</h1>
-						<button onClick={reloadCurrentPage} className="reload-btn">
-							Повторить загрузку
-						</button>
-					</div>
-				)}
+				{error && <h1 className="chapter-title">{error}</h1>}
 				{!loading && !error && !bookPath && (
 					<div>
 						<h1 className="chapter-title">Не указан путь к книге</h1>
@@ -290,12 +296,7 @@ const Book = ({ currentPage, onTotalPagesChange }) => {
 					</div>
 				)}
 				{!loading && !error && bookPath && pages.length === 0 && (
-					<div>
-						<h1 className="chapter-title">Книга не найдена или пуста</h1>
-						<button onClick={reloadCurrentPage} className="reload-btn">
-							Повторить загрузку
-						</button>
-					</div>
+					<h1 className="chapter-title">Книга не найдена или пуста</h1>
 				)}
 
 				{showInitialText && (
