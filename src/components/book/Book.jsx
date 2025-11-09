@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import './Book.css';
 import { fetchEpubPages } from '../../api/books';
 import { addNote } from '../../utils/note';
@@ -27,7 +27,6 @@ const Book = ({ currentPage, onTotalPagesChange }) => {
 	const [error, setError] = useState('');
 	const [meta, setMeta] = useState({ author: '', title: '' });
 	const [pages, setPages] = useState({});
-	const [totalPages, setTotalPages] = useState(0);
 
 	const [tooltip, setTooltip] = useState({ visible: false, x: 0, y: 0, text: '' });
 	const containerRef = useRef(null);
@@ -73,11 +72,10 @@ const Book = ({ currentPage, onTotalPagesChange }) => {
 				}
 
 				const total = data?.total || 100;
-				setTotalPages(total);
 				onTotalPagesChange(total);
-			} catch (e) {
+			} catch {
 				if (cancelled) return;
-				setError(e?.message || 'Ошибка загрузки книги');
+				setError('Ошибка загрузки книги');
 			} finally {
 				if (!cancelled) setLoading(false);
 			}
@@ -158,7 +156,7 @@ const Book = ({ currentPage, onTotalPagesChange }) => {
 		try {
 			await navigator.clipboard.writeText(text);
 			alert('Скопировано');
-		} catch (e) {
+		} catch {
 			try {
 				const ta = document.createElement('textarea');
 				ta.value = text;
@@ -169,7 +167,7 @@ const Book = ({ currentPage, onTotalPagesChange }) => {
 				document.execCommand('copy');
 				document.body.removeChild(ta);
 				alert('Скопировано (fallback)');
-			} catch (err) {
+			} catch {
 				alert('Не удалось скопировать');
 			}
 		}
@@ -190,7 +188,7 @@ const Book = ({ currentPage, onTotalPagesChange }) => {
 				text
 			});
 			alert('Добавлено в заметки');
-		} catch (e) {
+		} catch {
 			alert('Не удалось добавить в заметки');
 		}
 		hideTooltip();
