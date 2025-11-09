@@ -32,12 +32,6 @@ const Book = ({ currentPage, onTotalPagesChange }) => {
 	const containerRef = useRef(null);
 
 	useEffect(() => {
-		if (initialPage && initialPage !== currentPage) {
-			onTotalPagesChange(initialPage);
-		}
-	}, [initialPage, currentPage, onTotalPagesChange]);
-
-	useEffect(() => {
 		let cancelled = false;
 		async function load() {
 			if (!bookPath) {
@@ -82,7 +76,7 @@ const Book = ({ currentPage, onTotalPagesChange }) => {
 		}
 		load();
 		return () => { cancelled = true; };
-	}, [bookPath, currentPage, title, onTotalPagesChange]);
+	}, [bookPath, currentPage, title, onTotalPagesChange, pages]);
 
 	const header = meta.title && meta.author
 		? `${meta.title} — ${meta.author}`
@@ -227,7 +221,7 @@ const Book = ({ currentPage, onTotalPagesChange }) => {
 						</code>
 					</div>
 				)}
-				{!loading && !error && bookPath && !currentPageData && (
+				{!loading && !error && bookPath && Object.keys(pages).length === 0 && (
 					<h1 className="chapter-title">Книга не найдена или пуста</h1>
 				)}
 
