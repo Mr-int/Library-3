@@ -20,48 +20,51 @@ const Book = ({ currentPage, onTotalPagesChange }) => {
 
 	const bookPath = searchParams.path;
 	const title = searchParams.title;
-	const initialPage = searchParams.page;
 	const initialText = searchParams.text;
 
-	const [loading, setLoading] = useState(false);
+	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState('');
 	const [meta, setMeta] = useState({ author: '', title: '' });
 	const [pages, setPages] = useState([]);
-	const [totalPages, setTotalPages] = useState(0);
 
 	const [tooltip, setTooltip] = useState({ visible: false, x: 0, y: 0, text: '' });
 	const containerRef = useRef(null);
 
 	const pagesCache = useRef(new Map());
 
-	useEffect(() => {
-		if (initialPage && initialPage !== currentPage) {
-			onTotalPagesChange(initialPage);
-		}
-	}, [initialPage, currentPage, onTotalPagesChange]);
-
+	// Загрузка текущей страницы
 	useEffect(() => {
 		let cancelled = false;
 
-		async function loadCurrentPage() {
+		async function loadPage() {
 			if (!bookPath) {
 				setError('Не указан путь к книге');
+				setLoading(false);
 				return;
 			}
 
+			// Если страница уже в кэше - показываем сразу
 			if (pagesCache.current.has(currentPage)) {
 				const cachedData = pagesCache.current.get(currentPage);
 				setPages([cachedData]);
+				setLoading(false);
+				return;
 			}
 
 			setLoading(true);
 			setError('');
-			try {
-				const from = currentPage;
-				const to = currentPage;
 
-				const data = await fetchEpubPages({ path: bookPath, from, to });
+			try {
+				console.log('Загрузка страницы:', currentPage);
+				const data = await fetchEpubPages({
+					path: bookPath,
+					from: currentPage,
+					to: currentPage
+				});
+
 				if (cancelled) return;
+
+				console.log('Получены данные:', data);
 
 				const respTitle = data?.title || title || '';
 				const respAuthor = data?.author || '';
@@ -72,68 +75,97 @@ const Book = ({ currentPage, onTotalPagesChange }) => {
 				if (respPages.length > 0) {
 					pagesCache.current.set(currentPage, respPages[0]);
 					setPages(respPages);
+				} else {
+					setError('Страница не найдена');
 				}
 
-				const total = data?.total || totalPages || 100;
-				if (total !== totalPages) {
-					setTotalPages(total);
+				const total = data?.total;
+				if (total) {
+					console.log('Установлено общее количество страниц:', total);
 					onTotalPagesChange(total);
 				}
 			} catch (e) {
 				if (cancelled) return;
+				console.error('Ошибка загрузки:', e);
 				setError(e?.message || 'Ошибка загрузки книги');
 			} finally {
 				if (!cancelled) setLoading(false);
 			}
 		}
 
-		loadCurrentPage();
+		loadPage();
 	}, [bookPath, currentPage, title, onTotalPagesChange]);
 
+	// Предзагрузка соседних страниц
 	useEffect(() => {
-		if (!bookPath || totalPages === 0) return;
+		if (!bookPath || loading) return;
 
-		const loadNextPages = async () => {
-			const from = currentPage + 1;
-			const to = Math.min(totalPages, currentPage + 2);
-
-			if (from > to) return;
-
+		async function preloadPages() {
 			try {
-				const data = await fetchEpubPages({ path: bookPath, from, to });
-				const respPages = Array.isArray(data?.pages) ? data.pages : [];
+				// Предзагрузка вперед
+				const nextFrom = currentPage + 1;
+				const nextTo = currentPage + 2;
 
-				respPages.forEach((page, index) => {
-					const pageNum = from + index;
-					pagesCache.current.set(pageNum, page);
-				});
+				if (nextFrom <= nextTo) {
+					const pagesToLoadNext = [];
+					for (let i = nextFrom; i <= nextTo; i++) {
+						if (!pagesCache.current.has(i)) {
+							pagesToLoadNext.push(i);
+						}
+					}
+
+					if (pagesToLoadNext.length > 0) {
+						console.log('Предзагрузка вперед:', pagesToLoadNext);
+						const data = await fetchEpubPages({
+							path: bookPath,
+							from: Math.min(...pagesToLoadNext),
+							to: Math.max(...pagesToLoadNext)
+						});
+
+						if (data?.pages) {
+							data.pages.forEach((page, index) => {
+								const pageNum = Math.min(...pagesToLoadNext) + index;
+								pagesCache.current.set(pageNum, page);
+							});
+						}
+					}
+				}
+
+				// Предзагрузка назад
+				const prevFrom = Math.max(1, currentPage - 2);
+				const prevTo = currentPage - 1;
+
+				if (prevFrom <= prevTo) {
+					const pagesToLoadPrev = [];
+					for (let i = prevFrom; i <= prevTo; i++) {
+						if (!pagesCache.current.has(i)) {
+							pagesToLoadPrev.push(i);
+						}
+					}
+
+					if (pagesToLoadPrev.length > 0) {
+						console.log('Предзагрузка назад:', pagesToLoadPrev);
+						const data = await fetchEpubPages({
+							path: bookPath,
+							from: Math.min(...pagesToLoadPrev),
+							to: Math.max(...pagesToLoadPrev)
+						});
+
+						if (data?.pages) {
+							data.pages.forEach((page, index) => {
+								const pageNum = Math.min(...pagesToLoadPrev) + index;
+								pagesCache.current.set(pageNum, page);
+							});
+						}
+					}
+				}
 			} catch (e) {
-				console.log('Ошибка загрузки следующих страниц:', e);
+				console.log('Ошибка предзагрузки:', e);
 			}
-		};
+		}
 
-		const loadPrevPages = async () => {
-			const from = Math.max(1, currentPage - 2);
-			const to = currentPage - 1;
-
-			if (from > to) return;
-
-			try {
-				const data = await fetchEpubPages({ path: bookPath, from, to });
-				const respPages = Array.isArray(data?.pages) ? data.pages : [];
-
-				respPages.forEach((page, index) => {
-					const pageNum = from + index;
-					pagesCache.current.set(pageNum, page);
-				});
-			} catch (e) {
-				console.log('Ошибка загрузки предыдущих страниц:', e);
-			}
-		};
-
-		loadNextPages();
-		loadPrevPages();
-	}, [currentPage, totalPages, bookPath]);
+		preloadPages();
+	}, [currentPage, bookPath, loading]);
 
 	const header = meta.title && meta.author
 		? `${meta.title} — ${meta.author}`
@@ -248,7 +280,7 @@ const Book = ({ currentPage, onTotalPagesChange }) => {
 
 	const bookmarkImg = document.documentElement.getAttribute('data-theme') === 'light' ? lightBookmarkIcon : bookmarkIcon;
 
-	const showInitialText = initialText && currentPage === initialPage;
+	const showInitialText = initialText && currentPage === parseInt(searchParams.page);
 
 	const renderPageContent = () => {
 		if (!Array.isArray(currentPageData)) return null;
