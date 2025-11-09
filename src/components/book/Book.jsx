@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import './Book.css';
 import { fetchEpubPages } from '../../api/books';
 import { addNote } from '../../utils/note';
@@ -59,7 +59,7 @@ const Book = ({ currentPage, onTotalPagesChange }) => {
 			setError('');
 			try {
 				const from = currentPage;
-				const to = currentPage;
+				const to = currentPage + 2;
 
 				const data = await fetchEpubPages({ path: bookPath, from, to });
 				if (cancelled) return;
@@ -70,9 +70,13 @@ const Book = ({ currentPage, onTotalPagesChange }) => {
 
 				setMeta({ title: respTitle, author: respAuthor });
 
-				if (respPages.length > 0) {
-					pagesCache.current.set(currentPage, respPages[0]);
-					setPages(respPages);
+				respPages.forEach((page, index) => {
+					const pageNum = from + index;
+					pagesCache.current.set(pageNum, page);
+				});
+
+				if (pagesCache.current.has(currentPage)) {
+					setPages([pagesCache.current.get(currentPage)]);
 				}
 
 				const total = data?.total || 100;
@@ -90,47 +94,11 @@ const Book = ({ currentPage, onTotalPagesChange }) => {
 		return () => { cancelled = true; };
 	}, [bookPath, currentPage, title, onTotalPagesChange]);
 
-	const loadPageRange = async (startPage, endPage) => {
-		if (!bookPath) return;
-
-		try {
-			const data = await fetchEpubPages({ path: bookPath, from: startPage, to: endPage });
-			const respPages = Array.isArray(data?.pages) ? data.pages : [];
-
-			respPages.forEach((page, index) => {
-				const pageNum = startPage + index;
-				pagesCache.current.set(pageNum, page);
-			});
-
-			if (pagesCache.current.has(currentPage)) {
-				setPages([pagesCache.current.get(currentPage)]);
-			}
-
-		} catch (e) {
-		}
-	};
-
-	useEffect(() => {
-		if (currentPage > 1) {
-			const prevPage = currentPage - 1;
-			if (!pagesCache.current.has(prevPage)) {
-				loadPageRange(prevPage, prevPage);
-			}
-		}
-
-		if (currentPage < totalPages) {
-			const nextPage = currentPage + 1;
-			if (!pagesCache.current.has(nextPage)) {
-				loadPageRange(nextPage, nextPage);
-			}
-		}
-	}, [currentPage, totalPages, bookPath]);
-
 	const header = meta.title && meta.author
 		? `${meta.title} — ${meta.author}`
 		: (meta.title || title || 'Книга');
 
-	const currentPageData = pages[currentPage - 1] || [];
+	const currentPageData = pages[0] || [];
 
 	const getSelectionText = () => {
 		const sel = window.getSelection && window.getSelection();
