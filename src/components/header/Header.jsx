@@ -18,7 +18,6 @@ const Header = ({ theme = 'dark', setTheme, fontSize = 'medium', setFontSize }) 
     const [searchQuery, setSearchQuery] = useState('');
 
     const searchInputRef = useRef(null);
-    const searchTimeoutRef = useRef(null);
 
     const handleCloseSite = () => {
         if (window.confirm('Вы уверены, что хотите закрыть приложение?')) {
@@ -32,11 +31,6 @@ const Header = ({ theme = 'dark', setTheme, fontSize = 'medium', setFontSize }) 
     const handleSearchChange = (e) => {
         const query = e.target.value;
         setSearchQuery(query);
-
-        if (searchTimeoutRef.current) {
-            clearTimeout(searchTimeoutRef.current);
-        }
-
         performSearch(query);
     };
 
@@ -55,13 +49,30 @@ const Header = ({ theme = 'dark', setTheme, fontSize = 'medium', setFontSize }) 
     };
 
     const highlightTextInElement = (element, query) => {
-        const text = element.textContent || element.innerText;
-        const regex = new RegExp(`(${escapeRegExp(query)})`, 'gi');
+        const originalHtml = element.getAttribute('data-original-html') || element.innerHTML;
+        const decodedHtml = decodeHtml(originalHtml);
 
-        if (regex.test(text)) {
-            const newHtml = text.replace(regex, '<mark class="search-highlight">$1</mark>');
+        const escapedQuery = escapeRegExp(query);
+        const regex = new RegExp(`(${escapedQuery})`, 'gi');
+
+        if (regex.test(decodedHtml)) {
+            const newHtml = decodedHtml.replace(regex, '<mark class="search-highlight">$1</mark>');
             element.innerHTML = newHtml;
         }
+    };
+
+    const decodeHtml = (html) => {
+        const txt = document.createElement('textarea');
+        txt.innerHTML = html;
+        return txt.value
+            .replace(/%20/g, ' ')
+            .replace(/_/g, ' ')
+            .replace(/&nbsp;/g, ' ')
+            .replace(/&amp;/g, '&')
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/&quot;/g, '"')
+            .replace(/&#39;/g, "'");
     };
 
     const escapeRegExp = (string) => {
@@ -71,11 +82,9 @@ const Header = ({ theme = 'dark', setTheme, fontSize = 'medium', setFontSize }) 
     const clearSearchHighlights = () => {
         const contentElements = document.querySelectorAll('.content-text');
         contentElements.forEach(element => {
-            if (element && element.innerHTML) {
-                const originalHtml = element.getAttribute('data-original-html');
-                if (originalHtml) {
-                    element.innerHTML = originalHtml;
-                }
+            const originalHtml = element.getAttribute('data-original-html');
+            if (originalHtml) {
+                element.innerHTML = originalHtml;
             }
         });
     };
@@ -93,13 +102,6 @@ const Header = ({ theme = 'dark', setTheme, fontSize = 'medium', setFontSize }) 
         if (e.key === 'Escape') {
             setSearchQuery('');
             clearSearchHighlights();
-            const contentElements = document.querySelectorAll('.content-text');
-            contentElements.forEach(element => {
-                const originalHtml = element.getAttribute('data-original-html');
-                if (originalHtml) {
-                    element.innerHTML = originalHtml;
-                }
-            });
         }
     };
 
@@ -112,9 +114,6 @@ const Header = ({ theme = 'dark', setTheme, fontSize = 'medium', setFontSize }) 
 
         return () => {
             clearTimeout(timeoutId);
-            if (searchTimeoutRef.current) {
-                clearTimeout(searchTimeoutRef.current);
-            }
         };
     }, []);
 
