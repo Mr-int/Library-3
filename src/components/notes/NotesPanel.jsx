@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import './NotesPanel.css';
-import { getNotes } from '../../utils/note';
+import { getNotes, deleteNote } from '../../utils/note';
 
 const NotesPanel = ({ onClose }) => {
 	const [notes, setNotes] = useState([]);
@@ -12,6 +12,12 @@ const NotesPanel = ({ onClose }) => {
 		window.addEventListener('notes:updated', onUpdated);
 		return () => window.removeEventListener('notes:updated', onUpdated);
 	}, []);
+
+	const handleDeleteNote = (id) => {
+		if (window.confirm('Удалить эту заметку?')) {
+			deleteNote(id);
+		}
+	};
 
 	return (
 		<div className="NotesPanelOverlay" onClick={onClose}>
@@ -28,6 +34,13 @@ const NotesPanel = ({ onClose }) => {
 								<div className="note-book">{n.bookTitle || 'Без названия'}</div>
 								{n.author && <div className="note-author">{n.author}</div>}
 								<div className="note-date">{new Date(n.createdAt).toLocaleString()}</div>
+								<button
+									className="note-delete"
+									onClick={() => handleDeleteNote(n.id)}
+									title="Удалить заметку"
+								>
+									×
+								</button>
 							</div>
 							<div className="note-text">{n.text}</div>
 						</div>

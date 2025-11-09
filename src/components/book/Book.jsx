@@ -108,7 +108,7 @@ const Book = ({ currentPage, onTotalPagesChange }) => {
 		}
 
 		const text = selection.toString().trim();
-		return text.length > 0 ? text : '';
+		return text.length > 1 ? text : ''; // Минимум 2 символа
 	};
 
 	const showSelectionTooltip = () => {
@@ -129,13 +129,12 @@ const Book = ({ currentPage, onTotalPagesChange }) => {
 
 		const containerRect = container.getBoundingClientRect();
 
-		// Позиционируем плашку над выделенным текстом
 		const x = rect.left + (rect.width / 2) - containerRect.left;
-		const y = rect.top - containerRect.top - 50; // Поднимаем выше выделения
+		const y = rect.top - containerRect.top - 45;
 
 		setTooltip({
 			visible: true,
-			x: Math.max(60, Math.min(x, containerRect.width - 60)), // Ограничиваем по краям
+			x: Math.max(60, Math.min(x, containerRect.width - 60)),
 			y: Math.max(10, y),
 			text
 		});
@@ -146,19 +145,20 @@ const Book = ({ currentPage, onTotalPagesChange }) => {
 	};
 
 	useEffect(() => {
+		const handleSelectionChange = () => {
+			const text = getSelectionText();
+			if (text) {
+				showSelectionTooltip();
+			} else {
+				hideTooltip();
+			}
+		};
+
 		const handleMouseUp = () => {
-			setTimeout(() => {
-				const text = getSelectionText();
-				if (text) {
-					showSelectionTooltip();
-				} else {
-					hideTooltip();
-				}
-			}, 50);
+			setTimeout(handleSelectionChange, 10);
 		};
 
 		const handleClick = (e) => {
-			// Скрываем плашку при клике вне её
 			if (!e.target.closest('.selection-tooltip')) {
 				hideTooltip();
 			}
@@ -166,7 +166,6 @@ const Book = ({ currentPage, onTotalPagesChange }) => {
 
 		const handleScroll = () => {
 			hideTooltip();
-			window.getSelection()?.removeAllRanges();
 		};
 
 		document.addEventListener('mouseup', handleMouseUp);
@@ -186,7 +185,7 @@ const Book = ({ currentPage, onTotalPagesChange }) => {
 
 		try {
 			await navigator.clipboard.writeText(text);
-			alert('Скопировано');
+			// Без alert
 		} catch (e) {
 			try {
 				const textArea = document.createElement('textarea');
@@ -197,9 +196,8 @@ const Book = ({ currentPage, onTotalPagesChange }) => {
 				textArea.select();
 				document.execCommand('copy');
 				document.body.removeChild(textArea);
-				alert('Скопировано');
 			} catch (err) {
-				alert('Не удалось скопировать');
+				// Без alert
 			}
 		}
 		hideTooltip();
@@ -217,14 +215,9 @@ const Book = ({ currentPage, onTotalPagesChange }) => {
 				text: text
 			});
 
-			if (success) {
-				alert('Добавлено в заметки');
-			} else {
-				alert('Не удалось добавить в заметки');
-			}
+			// Без alert - просто добавляем
 		} catch (e) {
 			console.error('Ошибка добавления заметки:', e);
-			alert('Ошибка при добавлении в заметки');
 		}
 		hideTooltip();
 		window.getSelection()?.removeAllRanges();

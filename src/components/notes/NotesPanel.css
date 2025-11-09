@@ -83,3 +83,32 @@
     white-space: pre-wrap;
     line-height: 1.5;
 }
+
+.note-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 16px;
+    margin-bottom: 8px;
+    font-size: 12px;
+    opacity: 0.8;
+    position: relative;
+}
+
+.note-delete {
+    position: absolute;
+    right: 0;
+    top: 0;
+    background: none;
+    border: none;
+    color: var(--panel-text);
+    cursor: pointer;
+    font-size: 18px;
+    opacity: 0.6;
+    padding: 0;
+    width: 20px;
+    height: 20px;
+}
+
+.note-delete:hover {
+    opacity: 1;
+}
