@@ -50,7 +50,7 @@ const Book = ({ currentPage, onTotalPagesChange }) => {
 			setError('');
 			try {
 				const from = currentPage;
-				const to = currentPage + 4;
+				const to = currentPage;
 
 				const data = await fetchEpubPages({ path: bookPath, from, to });
 				if (cancelled) return;
@@ -62,7 +62,7 @@ const Book = ({ currentPage, onTotalPagesChange }) => {
 				setMeta({ title: respTitle, author: respAuthor });
 				setPages(respPages);
 
-				const total = data?.totalPages || 100;
+				const total = data?.total || 100;
 				setTotalPages(total);
 				onTotalPagesChange(total);
 			} catch (e) {
@@ -80,7 +80,7 @@ const Book = ({ currentPage, onTotalPagesChange }) => {
 		? `${meta.title} — ${meta.author}`
 		: (meta.title || title || 'Книга');
 
-	const currentPageData = pages[0] || {};
+	const currentPageData = pages[currentPage - 1] || [];
 
 	const getSelectionText = () => {
 		const sel = window.getSelection && window.getSelection();
@@ -191,6 +191,18 @@ const Book = ({ currentPage, onTotalPagesChange }) => {
 
 	const showInitialText = initialText && currentPage === initialPage;
 
+	const renderPageContent = () => {
+		if (!Array.isArray(currentPageData)) return null;
+
+		return currentPageData.map((html, index) => (
+			<div
+				key={index}
+				className="content-text"
+				dangerouslySetInnerHTML={{ __html: html }}
+			/>
+		));
+	};
+
 	return (
 		<div className="book-content" ref={containerRef}>
 			<div className="page">
@@ -217,15 +229,12 @@ const Book = ({ currentPage, onTotalPagesChange }) => {
 					</div>
 				)}
 
-				{!loading && !error && currentPageData && (
+				{!loading && !error && currentPageData && currentPageData.length > 0 && (
 					<div>
 						<h1 className="chapter-title">
-							{currentPageData.chapterTitle || `Страница ${currentPage}`}
+							Страница {currentPage}
 						</h1>
-						<div
-							className="content-text"
-							dangerouslySetInnerHTML={{ __html: currentPageData.contentHtml || '' }}
-						/>
+						{renderPageContent()}
 					</div>
 				)}
 			</div>

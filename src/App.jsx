@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Header from "./components/header/Header.jsx";
 import Book from "./components/book/Book.jsx";
 import Footer from "./components/footer/Footer.jsx";
@@ -14,7 +14,6 @@ const App = () => {
         return saved === 'small' || saved === 'large' ? saved : 'medium';
     });
 
-    // Получаем начальную страницу из URL параметров
     const getInitialPage = () => {
         if (typeof window === 'undefined') return 1;
         const urlParams = new URLSearchParams(window.location.search);
@@ -40,17 +39,16 @@ const App = () => {
         localStorage.setItem('fontSize', fontSize);
     }, [fontSize]);
 
-    const handlePageChange = (newPage) => {
+    const handlePageChange = useCallback((newPage) => {
         setCurrentPage(newPage);
-        // Можно также обновить URL без перезагрузки страницы
         const url = new URL(window.location);
         url.searchParams.set('page', newPage);
         window.history.pushState({}, '', url);
-    };
+    }, []);
 
-    const handleTotalPagesChange = (total) => {
+    const handleTotalPagesChange = useCallback((total) => {
         setTotalPages(total);
-    };
+    }, []);
 
     return (
         <div className="app">
