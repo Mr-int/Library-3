@@ -1,4 +1,4 @@
-const DEFAULT_BASE_URL = 'http://10.100.10.203:8080/api';
+const DEFAULT_BASE_URL = '/api';
 
 export function getBaseUrl() {
     return DEFAULT_BASE_URL;
@@ -26,8 +26,6 @@ export async function apiFetch(path, options = {}) {
             method: options.method || 'GET',
             headers,
             body,
-            // Добавляем credentials если нужно
-            credentials: 'omit', // или 'include' если нужны куки
         });
     } catch (networkError) {
         console.error('[apiFetch] network error:', networkError);

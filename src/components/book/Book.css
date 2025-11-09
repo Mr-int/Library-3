@@ -40,11 +40,17 @@
     line-height: 1.6;
     color: var(--text-color);
     max-width: 100%;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    word-break: break-word;
 }
 
 .content-text p {
     margin-bottom: 1em;
     color: var(--text-color);
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    word-break: break-word;
 }
 
 .swipe-area {
@@ -94,47 +100,48 @@
     --accent-active: rgba(87, 0, 236, 0.16);
     --primary-color: #000000;
 }
+
 .selection-tooltip {
-	position: absolute;
-	z-index: 400;
-	pointer-events: auto;
-	display: flex;
-	align-items: center;
-	gap: 8px;
-	background: var(--panel-bg);
-	color: var(--panel-text);
-	border: 1px solid var(--divider-color);
-	border-radius: 12px;
-	padding: 6px 8px;
-	box-shadow: 0 6px 24px rgba(0,0,0,0.2);
-	transform: translate(-50%, -8px);
-	user-select: none;
+    position: absolute;
+    z-index: 400;
+    pointer-events: auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--panel-bg);
+    color: var(--panel-text);
+    border: 1px solid var(--divider-color);
+    border-radius: 12px;
+    padding: 6px 8px;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.2);
+    transform: translate(-50%, -8px);
+    user-select: none;
 }
 
 .selection-btn {
-	border: none;
-	background: transparent;
-	color: var(--panel-text);
-	font-size: 12px;
-	padding: 6px 10px;
-	border-radius: 8px;
-	cursor: pointer;
+    border: none;
+    background: transparent;
+    color: var(--panel-text);
+    font-size: 12px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    cursor: pointer;
 }
 
 .selection-btn:hover {
-	background: var(--accent-hover);
+    background: var(--accent-hover);
 }
 
 .selection-sep {
-	width: 1px;
-	height: 18px;
-	background: var(--divider-color);
+    width: 1px;
+    height: 18px;
+    background: var(--divider-color);
 }
 
 .selection-icon {
-	width: 18px;
-	height: 18px;
-	display: block;
-	filter: none;
-	cursor: pointer;
+    width: 18px;
+    height: 18px;
+    display: block;
+    filter: none;
+    cursor: pointer;
 }

@@ -5,33 +5,66 @@ import { addNote } from '../../utils/note';
 import bookmarkIcon from "../../assets/header/bookmark.svg";
 import lightBookmarkIcon from "../../assets/header/LightBookmark.svg";
 
-const Book = ({ bookPath, title, initialFrom = 1, initialTo = 10 }) => {
+const Book = ({ currentPage, onTotalPagesChange }) => {
+	const [searchParams] = useState(() => {
+		if (typeof window === 'undefined') return { path: null, title: null, page: 1, text: null };
+
+		const urlParams = new URLSearchParams(window.location.search);
+		const path = urlParams.get('path');
+		const title = urlParams.get('title');
+		const page = parseInt(urlParams.get('page')) || 1;
+		const text = urlParams.get('text');
+
+		return { path, title, page, text };
+	});
+
+	const bookPath = searchParams.path;
+	const title = searchParams.title;
+	const initialPage = searchParams.page;
+	const initialText = searchParams.text;
+
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState('');
 	const [meta, setMeta] = useState({ author: '', title: '' });
 	const [pages, setPages] = useState([]);
-	const [range, setRange] = useState({ from: initialFrom, to: initialTo });
+	const [totalPages, setTotalPages] = useState(0);
 
-	// tooltip
 	const [tooltip, setTooltip] = useState({ visible: false, x: 0, y: 0, text: '' });
 	const containerRef = useRef(null);
 
-	const request = useMemo(() => ({ path: bookPath, from: range.from, to: range.to }), [bookPath, range]);
+	useEffect(() => {
+		if (initialPage && initialPage !== currentPage) {
+			onTotalPagesChange(initialPage);
+		}
+	}, [initialPage, currentPage, onTotalPagesChange]);
 
 	useEffect(() => {
 		let cancelled = false;
 		async function load() {
-			if (!request.path) return;
+			if (!bookPath) {
+				setError('Не указан путь к книге');
+				return;
+			}
+
 			setLoading(true);
 			setError('');
 			try {
-				const data = await fetchEpubPages(request);
+				const from = currentPage;
+				const to = currentPage + 4;
+
+				const data = await fetchEpubPages({ path: bookPath, from, to });
 				if (cancelled) return;
+
 				const respTitle = data?.title || title || '';
 				const respAuthor = data?.author || '';
 				const respPages = Array.isArray(data?.pages) ? data.pages : [];
+
 				setMeta({ title: respTitle, author: respAuthor });
 				setPages(respPages);
+
+				const total = data?.totalPages || 100;
+				setTotalPages(total);
+				onTotalPagesChange(total);
 			} catch (e) {
 				if (cancelled) return;
 				setError(e?.message || 'Ошибка загрузки книги');
@@ -41,11 +74,13 @@ const Book = ({ bookPath, title, initialFrom = 1, initialTo = 10 }) => {
 		}
 		load();
 		return () => { cancelled = true; };
-	}, [request, title]);
+	}, [bookPath, currentPage, title, onTotalPagesChange]);
 
 	const header = meta.title && meta.author
 		? `${meta.title} — ${meta.author}`
 		: (meta.title || title || 'Книга');
+
+	const currentPageData = pages[0] || {};
 
 	const getSelectionText = () => {
 		const sel = window.getSelection && window.getSelection();
@@ -106,7 +141,6 @@ const Book = ({ bookPath, title, initialFrom = 1, initialTo = 10 }) => {
 
 	const handleCopy = async () => {
 		const text = tooltip.text;
-		console.log('[copy] text:', text);
 		if (!text) {
 			alert('Нет выделенного текста');
 			return;
@@ -126,7 +160,6 @@ const Book = ({ bookPath, title, initialFrom = 1, initialTo = 10 }) => {
 				document.body.removeChild(ta);
 				alert('Скопировано (fallback)');
 			} catch (err) {
-				console.error('copy error:', err);
 				alert('Не удалось скопировать');
 			}
 		}
@@ -136,7 +169,6 @@ const Book = ({ bookPath, title, initialFrom = 1, initialTo = 10 }) => {
 
 	const handleBookmark = () => {
 		const text = tooltip.text;
-		console.log('[bookmark] text:', text);
 		if (!text) {
 			alert('Нет выделенного текста');
 			return;
@@ -149,7 +181,6 @@ const Book = ({ bookPath, title, initialFrom = 1, initialTo = 10 }) => {
 			});
 			alert('Добавлено в заметки');
 		} catch (e) {
-			console.error('addNote error:', e);
 			alert('Не удалось добавить в заметки');
 		}
 		hideTooltip();
@@ -158,6 +189,8 @@ const Book = ({ bookPath, title, initialFrom = 1, initialTo = 10 }) => {
 
 	const bookmarkImg = document.documentElement.getAttribute('data-theme') === 'light' ? lightBookmarkIcon : bookmarkIcon;
 
+	const showInitialText = initialText && currentPage === initialPage;
+
 	return (
 		<div className="book-content" ref={containerRef}>
 			<div className="page">
@@ -165,15 +198,36 @@ const Book = ({ bookPath, title, initialFrom = 1, initialTo = 10 }) => {
 
 				{loading && <h1 className="chapter-title">Загрузка…</h1>}
 				{error && <h1 className="chapter-title">{error}</h1>}
-				{!loading && !error && pages.length === 0 && (
+				{!loading && !error && !bookPath && (
+					<div>
+						<h1 className="chapter-title">Не указан путь к книге</h1>
+						<p>Откройте страницу с параметрами:</p>
+						<code>
+							http://localhost:5173/?path=1358935243_1161/403b2114-29e2-4ab4-9a96-07a85271c97f/book.epub&title=ТестоваяКнига&page=5
+						</code>
+					</div>
+				)}
+				{!loading && !error && bookPath && pages.length === 0 && (
 					<h1 className="chapter-title">Книга не найдена или пуста</h1>
 				)}
-				{!loading && !error && pages.map((p, idx) => (
-					<div key={`${p.chapterTitle || 'chapter'}-${range.from + idx}`}>
-						<h1 className="chapter-title">{p.chapterTitle || `Глава ${range.from + idx}`}</h1>
-						<div className="content-text" dangerouslySetInnerHTML={{ __html: p.contentHtml || '' }} />
+
+				{showInitialText && (
+					<div className="content-text">
+						<p>{decodeURIComponent(initialText)}</p>
 					</div>
-				))}
+				)}
+
+				{!loading && !error && currentPageData && (
+					<div>
+						<h1 className="chapter-title">
+							{currentPageData.chapterTitle || `Страница ${currentPage}`}
+						</h1>
+						<div
+							className="content-text"
+							dangerouslySetInnerHTML={{ __html: currentPageData.contentHtml || '' }}
+						/>
+					</div>
+				)}
 			</div>
 
 			{tooltip.visible && (

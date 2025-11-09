@@ -14,6 +14,16 @@ const App = () => {
         return saved === 'small' || saved === 'large' ? saved : 'medium';
     });
 
+    // Получаем начальную страницу из URL параметров
+    const getInitialPage = () => {
+        if (typeof window === 'undefined') return 1;
+        const urlParams = new URLSearchParams(window.location.search);
+        return parseInt(urlParams.get('page')) || 1;
+    };
+
+    const [currentPage, setCurrentPage] = useState(getInitialPage);
+    const [totalPages, setTotalPages] = useState(10);
+
     useEffect(() => {
         document.documentElement.setAttribute('data-theme', theme);
         localStorage.setItem('theme', theme);
@@ -30,16 +40,31 @@ const App = () => {
         localStorage.setItem('fontSize', fontSize);
     }, [fontSize]);
 
+    const handlePageChange = (newPage) => {
+        setCurrentPage(newPage);
+        // Можно также обновить URL без перезагрузки страницы
+        const url = new URL(window.location);
+        url.searchParams.set('page', newPage);
+        window.history.pushState({}, '', url);
+    };
+
+    const handleTotalPagesChange = (total) => {
+        setTotalPages(total);
+    };
+
     return (
         <div className="app">
             <Header theme={theme} setTheme={setTheme} fontSize={fontSize} setFontSize={setFontSize} />
             <Book
-                bookPath={"1358935243_1161/403b2114-29e2-4ab4-9a96-07a85271c97f/book.epub"}
-                title={"Книга"}
-                initialFrom={1}
-                initialTo={10}
+                currentPage={currentPage}
+                onTotalPagesChange={handleTotalPagesChange}
             />
-            <Footer theme={theme} />
+            <Footer
+                theme={theme}
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={handlePageChange}
+            />
         </div>
     )
 }
