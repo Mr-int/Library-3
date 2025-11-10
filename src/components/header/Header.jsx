@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import './Header.css';
 import SettingPanel from '../SettingPanel/SettingPanel';
 import NotesPanel from '../notes/NotesPanel';
@@ -16,6 +16,7 @@ const Header = ({ theme = 'dark', setTheme, fontSize = 'medium', setFontSize }) 
     const [isClosing, setIsClosing] = useState(false);
     const [showNotes, setShowNotes] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
+    const searchQueryRef = useRef('');
 
     const searchInputRef = useRef(null);
 
@@ -28,94 +29,82 @@ const Header = ({ theme = 'dark', setTheme, fontSize = 'medium', setFontSize }) 
         }
     };
 
-    const handleSearchChange = (e) => {
-        const query = e.target.value;
-        setSearchQuery(query);
-        performSearch(query);
-    };
+    const clearSearchHighlights = useCallback(() => {
+        const contentElements = document.querySelectorAll('.content-text');
+        contentElements.forEach(element => {
+            const originalHtml = element.dataset.originalHtml;
+            if (originalHtml) {
+                element.innerHTML = originalHtml;
+            }
+        });
+    }, []);
 
-    const performSearch = (query) => {
+    const performSearch = useCallback((query) => {
         clearSearchHighlights();
 
-        if (!query.trim()) {
+        const trimmedQuery = query.trim();
+        if (!trimmedQuery) {
             return;
         }
 
         const contentElements = document.querySelectorAll('.content-text');
 
         contentElements.forEach((element) => {
-            highlightTextInElement(element, query);
+            highlightTextInElement(element, trimmedQuery);
         });
+    }, [clearSearchHighlights]);
+
+    const handleSearchChange = (e) => {
+        const query = e.target.value;
+        searchQueryRef.current = query;
+        setSearchQuery(query);
+        performSearch(query);
     };
 
     const highlightTextInElement = (element, query) => {
-        const originalHtml = element.getAttribute('data-original-html') || element.innerHTML;
-        const decodedHtml = decodeHtml(originalHtml);
+        const originalHtml = element.dataset.originalHtml ?? element.innerHTML;
+
+        if (!element.dataset.originalHtml) {
+            element.dataset.originalHtml = originalHtml;
+        }
 
         const escapedQuery = escapeRegExp(query);
         const regex = new RegExp(`(${escapedQuery})`, 'gi');
 
-        if (regex.test(decodedHtml)) {
-            const newHtml = decodedHtml.replace(regex, '<mark class="search-highlight">$1</mark>');
-            element.innerHTML = newHtml;
-        }
-    };
+        const highlightedHtml = originalHtml.replace(regex, '<mark class="search-highlight">$1</mark>');
 
-    const decodeHtml = (html) => {
-        const txt = document.createElement('textarea');
-        txt.innerHTML = html;
-        return txt.value
-            .replace(/%20/g, ' ')
-            .replace(/_/g, ' ')
-            .replace(/&nbsp;/g, ' ')
-            .replace(/&amp;/g, '&')
-            .replace(/&lt;/g, '<')
-            .replace(/&gt;/g, '>')
-            .replace(/&quot;/g, '"')
-            .replace(/&#39;/g, "'");
+        if (highlightedHtml !== originalHtml) {
+            element.innerHTML = highlightedHtml;
+        }
     };
 
     const escapeRegExp = (string) => {
         return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     };
 
-    const clearSearchHighlights = () => {
-        const contentElements = document.querySelectorAll('.content-text');
-        contentElements.forEach(element => {
-            const originalHtml = element.getAttribute('data-original-html');
-            if (originalHtml) {
-                element.innerHTML = originalHtml;
-            }
-        });
-    };
-
-    const saveOriginalHTML = () => {
-        const contentElements = document.querySelectorAll('.content-text');
-        contentElements.forEach(element => {
-            if (!element.getAttribute('data-original-html')) {
-                element.setAttribute('data-original-html', element.innerHTML);
-            }
-        });
-    };
-
     const handleSearchKeyDown = (e) => {
         if (e.key === 'Escape') {
             setSearchQuery('');
+            searchQueryRef.current = '';
             clearSearchHighlights();
         }
     };
 
     useEffect(() => {
-        saveOriginalHTML();
+        const handleContentUpdated = () => {
+            if (searchQueryRef.current.trim()) {
+                performSearch(searchQueryRef.current);
+            } else {
+                clearSearchHighlights();
+            }
+        };
 
-        const timeoutId = setTimeout(() => {
-            saveOriginalHTML();
-        }, 1000);
+        window.addEventListener('book:content-updated', handleContentUpdated);
 
         return () => {
-            clearTimeout(timeoutId);
+            window.removeEventListener('book:content-updated', handleContentUpdated);
         };
-    }, []);
+    }, [performSearch, clearSearchHighlights]);
 
     const openPanel = () => {
         setPanel(true);

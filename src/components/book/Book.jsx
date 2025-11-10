@@ -147,11 +147,7 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 				return '';
 			}
 
-			const clonedContents = range.cloneContents();
-			const tempDiv = document.createElement('div');
-			tempDiv.appendChild(clonedContents);
-			
-			let text = tempDiv.textContent || tempDiv.innerText || '';
+			let text = sel.toString();
 			
 			text = text
 				.replace(/[ \t]+/g, ' ')  
@@ -304,6 +300,14 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 		};
 	}, []);
 
+	useEffect(() => {
+		if (loading) {
+			return;
+		}
+		setTooltip(prev => ({ ...prev, visible: false }));
+		window.dispatchEvent(new CustomEvent('book:content-updated'));
+	}, [loading, pages, showInitialText]);
+
 	const handleCopy = async () => {
 		const text = tooltip.text;
 		if (!text) return;
@@ -348,6 +352,7 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 	const bookmarkImg = document.documentElement.getAttribute('data-theme') === 'light' ? lightBookmarkIcon : bookmarkIcon;
 
 	const showInitialText = initialText && currentPage === parseInt(searchParams.page);
+	const decodedInitialText = showInitialText ? decodeURIComponent(initialText) : '';
 
 	const renderPageContent = () => {
 		if (!Array.isArray(currentPageData)) return null;
@@ -356,6 +361,7 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 			<div
 				key={index}
 				className="content-text"
+				data-original-html={html}
 				dangerouslySetInnerHTML={{ __html: html }}
 			/>
 		));
@@ -473,8 +479,8 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 				)}
 
 				{showInitialText && (
-					<div className="content-text">
-						<p>{decodeURIComponent(initialText)}</p>
+					<div className="content-text" data-original-html={`<p>${decodedInitialText}</p>`}>
+						<p>{decodedInitialText}</p>
 					</div>
 				)}
 
