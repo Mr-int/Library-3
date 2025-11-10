@@ -8,6 +8,8 @@
     color: var(--text-color);
     display: flex;
     justify-content: center;
+    user-select: text;
+    -webkit-user-select: text;
 }
 
 .page {
@@ -43,6 +45,14 @@
     word-wrap: break-word;
     overflow-wrap: break-word;
     word-break: break-word;
+    user-select: text;
+    -webkit-user-select: text;
+    cursor: text;
+}
+
+.content-text * {
+    user-select: text;
+    -webkit-user-select: text;
 }
 
 .content-text p {
@@ -51,6 +61,15 @@
     word-wrap: break-word;
     overflow-wrap: break-word;
     word-break: break-word;
+    display: block;
+}
+
+.content-text::selection {
+    background: rgba(130, 255, 3, 0.3);
+}
+
+.content-text::-moz-selection {
+    background: rgba(130, 255, 3, 0.3);
 }
 
 .swipe-area {
@@ -116,6 +135,18 @@
     box-shadow: 0 6px 24px rgba(0,0,0,0.2);
     transform: translate(-50%, -8px);
     user-select: none;
+    animation: tooltipFadeIn 0.15s ease-out;
+}
+
+@keyframes tooltipFadeIn {
+    from { 
+        opacity: 0; 
+        transform: translate(-50%, -12px); 
+    }
+    to { 
+        opacity: 1; 
+        transform: translate(-50%, -8px); 
+    }
 }
 
 .selection-btn {
@@ -126,6 +157,7 @@
     padding: 6px 10px;
     border-radius: 8px;
     cursor: pointer;
+    transition: background-color 0.2s;
 }
 
 .selection-btn:hover {

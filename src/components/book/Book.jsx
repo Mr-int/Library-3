@@ -30,8 +30,8 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 
 	const [tooltip, setTooltip] = useState({ visible: false, x: 0, y: 0, text: '' });
 	const containerRef = useRef(null);
+	const tooltipRef = useRef(null);
 	
-	// Состояние для отслеживания свайпа
 	const touchStartRef = useRef(null);
 	const touchMoveRef = useRef(null);
 
@@ -110,29 +110,23 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 		if (!sel || sel.isCollapsed || sel.rangeCount === 0) return '';
 		
 		try {
-			// Используем Range API для извлечения чистого текста
 			const range = sel.getRangeAt(0).cloneRange();
 			const container = containerRef.current;
 			
 			if (!container) {
-				// Fallback на стандартный метод
 				return sel.toString().trim();
 			}
 
-			// Проверяем, что выделение находится внутри контента книги
 			const contentElements = container.querySelectorAll('.content-text');
 			let isInContent = false;
 			
-			// Получаем контейнер, в котором находится выделение
 			const commonAncestor = range.commonAncestorContainer;
 			const nodeToCheck = commonAncestor.nodeType === Node.TEXT_NODE 
 				? commonAncestor.parentNode 
 				: commonAncestor;
 			
 			for (const contentEl of contentElements) {
-				// Проверяем, содержится ли узел выделения в элементе контента
 				if (contentEl.contains(nodeToCheck) || contentEl === nodeToCheck) {
-					// Дополнительно проверяем, что начало и конец диапазона тоже в контенте
 					const startContainer = range.startContainer;
 					const endContainer = range.endContainer;
 					const startNode = startContainer.nodeType === Node.TEXT_NODE 
@@ -153,26 +147,21 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 				return '';
 			}
 
-			// Извлекаем текстовое содержимое из Range, игнорируя HTML-теги
 			const clonedContents = range.cloneContents();
 			const tempDiv = document.createElement('div');
 			tempDiv.appendChild(clonedContents);
 			
-			// Получаем только текстовое содержимое, удаляя лишние пробелы
 			let text = tempDiv.textContent || tempDiv.innerText || '';
 			
-			// Очищаем текст от лишних пробелов, но сохраняем структуру
-			// Заменяем множественные пробелы на один, но сохраняем переносы строк для абзацев
 			text = text
-				.replace(/[ \t]+/g, ' ')  // Заменяем множественные пробелы и табы на один пробел
-				.replace(/\n\s+/g, '\n')  // Удаляем пробелы в начале строк
-				.replace(/\s+\n/g, '\n')  // Удаляем пробелы в конце строк
-				.replace(/\n{3,}/g, '\n\n')  // Ограничиваем множественные переносы строк до двух
+				.replace(/[ \t]+/g, ' ')  
+				.replace(/\n\s+/g, '\n')  
+				.replace(/\s+\n/g, '\n')  
+				.replace(/\n{3,}/g, '\n\n')  
 				.trim();
 
-			return text.length > 1 ? text : ''; // Минимум 2 символа
+			return text.length > 1 ? text : ''; 
 		} catch (error) {
-			// Fallback на стандартный метод в случае ошибки
 			return sel.toString().trim();
 		}
 	};
@@ -210,7 +199,7 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 			setTooltip({
 				visible: true,
 				x: x - containerRect.left,
-				y: y - containerRect.top,
+				y: y - containerRect.top - 40,
 				text
 			});
 		} catch (error) {
@@ -224,12 +213,10 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 
 	useEffect(() => {
 		const handleSelectionChange = () => {
-			// Игнорируем выделение, если происходит свайп
 			if (touchStartRef.current) {
 				return;
 			}
 
-			// Используем selectionchange для более надежного отслеживания
 			const sel = window.getSelection();
 			if (!sel || sel.isCollapsed || sel.rangeCount === 0) {
 				hideTooltip();
@@ -242,12 +229,10 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 				return;
 			}
 
-			// Проверяем, что выделение находится внутри контента книги
 			const contentElements = container.querySelectorAll('.content-text');
 			const range = sel.getRangeAt(0);
 			let isInContent = false;
 
-			// Получаем контейнер, в котором находится выделение
 			const commonAncestor = range.commonAncestorContainer;
 			const nodeToCheck = commonAncestor.nodeType === Node.TEXT_NODE 
 				? commonAncestor.parentNode 
@@ -255,9 +240,7 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 
 			for (const contentEl of contentElements) {
 				try {
-					// Проверяем, содержится ли узел выделения в элементе контента
 					if (contentEl.contains(nodeToCheck) || contentEl === nodeToCheck) {
-						// Дополнительно проверяем, что начало и конец диапазона тоже в контенте
 						const startContainer = range.startContainer;
 						const endContainer = range.endContainer;
 						const startNode = startContainer.nodeType === Node.TEXT_NODE 
@@ -273,46 +256,51 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 						}
 					}
 				} catch (e) {
-					// Игнорируем ошибки
 				}
 			}
 
 			if (isInContent) {
-				setTimeout(showSelectionTooltip, 10);
+				setTimeout(showSelectionTooltip, 50);
 			} else {
 				hideTooltip();
 			}
 		};
 
 		const onMouseUp = (e) => {
-			// Небольшая задержка для завершения выделения
-			setTimeout(handleSelectionChange, 10);
+			if (tooltipRef.current && tooltipRef.current.contains(e.target)) {
+				return;
+			}
+			setTimeout(handleSelectionChange, 50);
 		};
 
-		const handleClick = (e) => {
-			if (!e.target.closest('.selection-tooltip')) {
+		const handleClickOutside = (e) => {
+			if (tooltipRef.current && tooltipRef.current.contains(e.target)) {
+				return;
+			}
+			
+			const sel = window.getSelection();
+			if (!sel || sel.isCollapsed) {
 				hideTooltip();
 			}
 		};
 
-		const onScroll = () => hideTooltip();
-		
-		// Обработка touch для мобильных устройств
-		// Используем selectionchange, который работает и для touch-устройств
-		// Не добавляем отдельный touchend, чтобы не конфликтовать со свайпом
+		const onScroll = () => {
+			const sel = window.getSelection();
+			if (!sel || sel.isCollapsed) {
+				hideTooltip();
+			}
+		};
 
 		document.addEventListener('mouseup', onMouseUp);
-		document.addEventListener('click', handleClick);
+		document.addEventListener('mousedown', handleClickOutside);
 		document.addEventListener('selectionchange', handleSelectionChange);
 		containerRef.current?.addEventListener('scroll', onScroll, { passive: true });
-		document.addEventListener('scroll', onScroll, true);
 
 		return () => {
 			document.removeEventListener('mouseup', onMouseUp);
-			document.removeEventListener('click', handleClick);
+			document.removeEventListener('mousedown', handleClickOutside);
 			document.removeEventListener('selectionchange', handleSelectionChange);
 			containerRef.current?.removeEventListener('scroll', onScroll);
-			document.removeEventListener('scroll', onScroll, true);
 		};
 	}, []);
 
@@ -322,7 +310,6 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 
 		try {
 			await navigator.clipboard.writeText(text);
-			// Без alert
 		} catch (e) {
 			try {
 				const textArea = document.createElement('textarea');
@@ -334,7 +321,6 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 				document.execCommand('copy');
 				document.body.removeChild(textArea);
 			} catch (err) {
-				// Без alert
 			}
 		}
 		hideTooltip();
@@ -352,7 +338,6 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 				text: text
 			});
 
-			// Без alert - просто добавляем
 		} catch (e) {
 			console.error('Ошибка добавления заметки:', e);
 		}
@@ -376,12 +361,10 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 		));
 	};
 
-	// Обработчики для свайпа
 	const handleTouchStart = (e) => {
-		// Проверяем, есть ли выделенный текст
 		const selection = window.getSelection();
 		if (selection && !selection.isCollapsed) {
-			return; // Если есть выделение, не обрабатываем свайп
+			return;
 		}
 
 		const touch = e.touches[0];
@@ -410,6 +393,16 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 
 	const handleTouchEnd = (e) => {
 		if (!touchStartRef.current || !touchMoveRef.current) {
+			const touch = e.changedTouches[0];
+			if (touch) {
+				setTimeout(() => {
+					const sel = window.getSelection();
+					if (sel && !sel.isCollapsed) {
+						showSelectionTooltip();
+					}
+				}, 100);
+			}
+			
 			touchStartRef.current = null;
 			touchMoveRef.current = null;
 			return;
@@ -424,15 +417,10 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 		const absDeltaX = Math.abs(deltaX);
 		const absDeltaY = Math.abs(deltaY);
 
-		// Минимальное расстояние для свайпа (50px)
 		const minSwipeDistance = 50;
-		// Максимальное время для свайпа (500ms)
 		const maxSwipeTime = 500;
-		// Горизонтальное движение должно быть значительно больше вертикального
-		// (минимум в 1.5 раза) для распознавания как свайп
 		const isHorizontalSwipe = absDeltaX > absDeltaY * 1.5;
 
-		// Проверяем, что это горизонтальный свайп и не было прокрутки
 		const scrollDelta = containerRef.current 
 			? Math.abs(containerRef.current.scrollTop - start.scrollTop)
 			: 0;
@@ -441,17 +429,15 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 			absDeltaX >= minSwipeDistance &&
 			isHorizontalSwipe &&
 			deltaTime <= maxSwipeTime &&
-			scrollDelta < 10 && // Не было вертикальной прокрутки
+			scrollDelta < 10 && 
 			onPageChange
 		) {
-			// Свайп влево = следующая страница
 			if (deltaX < 0 && currentPage < totalPages) {
-				e.preventDefault(); // Предотвращаем стандартное поведение
+				e.preventDefault();
 				onPageChange(currentPage + 1);
 			}
-			// Свайп вправо = предыдущая страница
 			else if (deltaX > 0 && currentPage > 1) {
-				e.preventDefault(); // Предотвращаем стандартное поведение
+				e.preventDefault();
 				onPageChange(currentPage - 1);
 			}
 		}
@@ -504,6 +490,7 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 
 			{tooltip.visible && (
 				<div
+					ref={tooltipRef}
 					className="selection-tooltip"
 					style={{
 						left: `${tooltip.x}px`,
