@@ -1,15 +1,13 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
-import './Header.css';
-import SettingPanel from '../SettingPanel/SettingPanel';
-import NotesPanel from '../notes/NotesPanel';
-import crossIcon from "../../assets/header/cross_icon.svg";
-import bookmarkIcon from "../../assets/header/bookmark.svg";
-import settingsIcon from "../../assets/header/settings_icon.svg";
-import lightCrossIcon from "../../assets/header/LightCross_icon.svg";
-import lightBookmarkIcon from "../../assets/header/LightBookmark.svg";
-import lightSettingsIcon from "../../assets/header/LightSettings_icon.svg";
-import searchIcon from "../../assets/header/search_icon.svg";
-import lightSearchIcon from "../../assets/header/LightSearch_icon.svg";
+	import { useState, useRef, useEffect, useCallback } from 'react';
+	import './Header.css';
+	import SettingPanel from '../SettingPanel/SettingPanel';
+	import NotesPanel from '../notes/NotesPanel';
+	import bookmarkIcon from "../../assets/header/bookmark.svg";
+	import settingsIcon from "../../assets/header/settings_icon.svg";
+	import lightBookmarkIcon from "../../assets/header/LightBookmark.svg";
+	import lightSettingsIcon from "../../assets/header/LightSettings_icon.svg";
+	import searchIcon from "../../assets/header/search_icon.svg";
+	import lightSearchIcon from "../../assets/header/LightSearch_icon.svg";
 
 const Header = ({ theme = 'dark', setTheme, fontSize = 'medium', setFontSize }) => {
     const [showPanel, setPanel] = useState(false);
@@ -19,15 +17,6 @@ const Header = ({ theme = 'dark', setTheme, fontSize = 'medium', setFontSize }) 
     const searchQueryRef = useRef('');
 
     const searchInputRef = useRef(null);
-
-    const handleCloseSite = () => {
-        if (window.confirm('Вы уверены, что хотите закрыть приложение?')) {
-            window.close();
-            if (!window.closed) {
-                window.location.href = 'about:blank';
-            }
-        }
-    };
 
     const clearSearchHighlights = useCallback(() => {
         const contentElements = document.querySelectorAll('.content-text');
@@ -123,7 +112,6 @@ const Header = ({ theme = 'dark', setTheme, fontSize = 'medium', setFontSize }) 
         if (!showPanel) openPanel(); else closePanel();
     };
 
-    const cross = theme === 'light' ? lightCrossIcon : crossIcon;
     const bookmark = theme === 'light' ? lightBookmarkIcon : bookmarkIcon;
     const settings = theme === 'light' ? lightSettingsIcon : settingsIcon;
     const search = theme === 'light' ? lightSearchIcon : searchIcon;
@@ -137,9 +125,6 @@ const Header = ({ theme = 'dark', setTheme, fontSize = 'medium', setFontSize }) 
     return (
         <header className="header">
             <div className="header__nav">
-                <button className="header__nav-btn" onClick={handleCloseSite}>
-                    <img src={cross} alt="Закрыть приложение" width='26' height='26' />
-                </button>
                 <div className="header__search-wrapper">
                     <img src={search} alt="Поиск" className="header__search-icon" width='16' height='16' />
                     <input

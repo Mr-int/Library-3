@@ -7,20 +7,18 @@ import lightBookmarkIcon from "../../assets/header/LightBookmark.svg";
 
 const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }) => {
 	const [searchParams] = useState(() => {
-		if (typeof window === 'undefined') return { path: null, title: null, page: 1, text: null };
+		if (typeof window === 'undefined') return { path: null, title: null, page: 1 };
 
 		const urlParams = new URLSearchParams(window.location.search);
 		const path = urlParams.get('path');
 		const title = urlParams.get('title');
 		const page = parseInt(urlParams.get('page')) || 1;
-		const text = urlParams.get('text');
 
-		return { path, title, page, text };
+		return { path, title, page };
 	});
 
 	const bookPath = searchParams.path;
 	const title = searchParams.title;
-	const initialText = searchParams.text;
 
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState('');
@@ -306,7 +304,7 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 		}
 		setTooltip(prev => ({ ...prev, visible: false }));
 		window.dispatchEvent(new CustomEvent('book:content-updated'));
-	}, [loading, pages, showInitialText]);
+	}, [loading, pages]);
 
 	const handleCopy = async () => {
 		const text = tooltip.text;
@@ -350,9 +348,6 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 	};
 
 	const bookmarkImg = document.documentElement.getAttribute('data-theme') === 'light' ? lightBookmarkIcon : bookmarkIcon;
-
-	const showInitialText = initialText && currentPage === parseInt(searchParams.page);
-	const decodedInitialText = showInitialText ? decodeURIComponent(initialText) : '';
 
 	const renderPageContent = () => {
 		if (!Array.isArray(currentPageData)) return null;
@@ -465,30 +460,12 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 
 				{loading && <h1 className="chapter-title">Загрузка…</h1>}
 				{error && <h1 className="chapter-title">{error}</h1>}
-				{!loading && !error && !bookPath && (
-					<div>
-						<h1 className="chapter-title">Не указан путь к книге</h1>
-						<p>Откройте страницу с параметрами:</p>
-						<code>
-							http://localhost:5173/?path=1358935243_1161/403b2114-29e2-4ab4-9a96-07a85271c97f/book.epub&title=ТестоваяКнига&page=5
-						</code>
-					</div>
-				)}
 				{!loading && !error && bookPath && pages.length === 0 && (
 					<h1 className="chapter-title">Книга не найдена или пуста</h1>
 				)}
 
-				{showInitialText && (
-					<div className="content-text" data-original-html={`<p>${decodedInitialText}</p>`}>
-						<p>{decodedInitialText}</p>
-					</div>
-				)}
-
 				{!loading && !error && currentPageData && currentPageData.length > 0 && (
 					<div>
-						<h1 className="chapter-title">
-							Страница {currentPage}
-						</h1>
 						{renderPageContent()}
 					</div>
 				)}
