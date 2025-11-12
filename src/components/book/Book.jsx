@@ -210,7 +210,7 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 		}
 	}, [getSelectionText, hideTooltip]);
 
-	const scheduleShowSelectionTooltip = useCallback((delay = 50) => {
+	const scheduleShowSelectionTooltip = useCallback((delay = 80) => {
 		if (selectionTimeoutRef.current) {
 			clearTimeout(selectionTimeoutRef.current);
 		}
@@ -281,6 +281,7 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 				return;
 			}
 			setTimeout(handleSelectionChange, 50);
+			scheduleShowSelectionTooltip();
 		};
 
 		const handleClickOutside = (e) => {
@@ -423,7 +424,7 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 		if (!start || !move) {
 			const touch = e.changedTouches[0];
 			if (touch) {
-				scheduleShowSelectionTooltip(120);
+				scheduleShowSelectionTooltip(160);
 			}
 			
 			touchStartRef.current = null;
@@ -468,7 +469,7 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 			}
 		}
 
-		scheduleShowSelectionTooltip(120);
+		scheduleShowSelectionTooltip(160);
 
 		touchStartRef.current = null;
 		touchMoveRef.current = null;
