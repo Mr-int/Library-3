@@ -47,7 +47,6 @@ const Header = ({ theme = 'dark', setTheme, fontSize = 'medium', setFontSize }) 
         const query = e.target.value;
         searchQueryRef.current = query;
         setSearchQuery(query);
-        performSearch(query);
     };
 
     const highlightTextInElement = (element, query) => {
@@ -94,6 +93,22 @@ const Header = ({ theme = 'dark', setTheme, fontSize = 'medium', setFontSize }) 
             window.removeEventListener('book:content-updated', handleContentUpdated);
         };
     }, [performSearch, clearSearchHighlights]);
+
+    useEffect(() => {
+        const frameId = requestAnimationFrame(() => {
+            performSearch(searchQueryRef.current);
+        });
+
+        return () => {
+            cancelAnimationFrame(frameId);
+        };
+    }, [searchQuery, performSearch]);
+
+    useEffect(() => {
+        return () => {
+            clearSearchHighlights();
+        };
+    }, [clearSearchHighlights]);
 
     const openPanel = () => {
         setPanel(true);

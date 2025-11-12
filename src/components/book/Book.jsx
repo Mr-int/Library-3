@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import './Book.css';
 import { fetchEpubPages } from '../../api/books';
 import { addNote } from '../../utils/note';
@@ -29,6 +29,7 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 	const [tooltip, setTooltip] = useState({ visible: false, x: 0, y: 0, text: '' });
 	const containerRef = useRef(null);
 	const tooltipRef = useRef(null);
+	const selectionTimeoutRef = useRef(null);
 	
 	const touchStartRef = useRef(null);
 	const touchMoveRef = useRef(null);
@@ -103,7 +104,7 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 
 	const currentPageData = pages[0] || [];
 
-	const getSelectionText = () => {
+	const getSelectionText = useCallback(() => {
 		const sel = window.getSelection && window.getSelection();
 		if (!sel || sel.isCollapsed || sel.rangeCount === 0) return '';
 		
@@ -158,17 +159,25 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 		} catch (error) {
 			return sel.toString().trim();
 		}
-	};
+	}, []);
 
-	const showSelectionTooltip = () => {
-		const text = getSelectionText();
-		if (!text || text.length === 0) {
+	const hideTooltip = useCallback(() => {
+		if (selectionTimeoutRef.current) {
+			clearTimeout(selectionTimeoutRef.current);
+			selectionTimeoutRef.current = null;
+		}
+		setTooltip(prev => ({ ...prev, visible: false }));
+	}, []);
+
+	const showSelectionTooltip = useCallback(() => {
+		const sel = window.getSelection();
+		if (!sel || sel.rangeCount === 0) {
 			hideTooltip();
 			return;
 		}
-		
-		const sel = window.getSelection();
-		if (!sel || sel.rangeCount === 0) {
+
+		const text = getSelectionText();
+		if (!text || text.length === 0) {
 			hideTooltip();
 			return;
 		}
@@ -199,11 +208,18 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 		} catch (error) {
 			hideTooltip();
 		}
-	};
+	}, [getSelectionText, hideTooltip]);
 
-	const hideTooltip = () => {
-		setTooltip(prev => ({ ...prev, visible: false }));
-	};
+	const scheduleShowSelectionTooltip = useCallback((delay = 50) => {
+		if (selectionTimeoutRef.current) {
+			clearTimeout(selectionTimeoutRef.current);
+		}
+
+		selectionTimeoutRef.current = setTimeout(() => {
+			showSelectionTooltip();
+			selectionTimeoutRef.current = null;
+		}, delay);
+	}, [showSelectionTooltip]);
 
 	useEffect(() => {
 		const handleSelectionChange = () => {
@@ -254,7 +270,7 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 			}
 
 			if (isInContent) {
-				setTimeout(showSelectionTooltip, 50);
+				scheduleShowSelectionTooltip();
 			} else {
 				hideTooltip();
 			}
@@ -296,7 +312,7 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 			document.removeEventListener('selectionchange', handleSelectionChange);
 			containerRef.current?.removeEventListener('scroll', onScroll);
 		};
-	}, []);
+	}, [hideTooltip, scheduleShowSelectionTooltip]);
 
 	useEffect(() => {
 		if (loading) {
@@ -305,6 +321,14 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 		setTooltip(prev => ({ ...prev, visible: false }));
 		window.dispatchEvent(new CustomEvent('book:content-updated'));
 	}, [loading, pages]);
+
+	useEffect(() => {
+		return () => {
+			if (selectionTimeoutRef.current) {
+				clearTimeout(selectionTimeoutRef.current);
+			}
+		};
+	}, []);
 
 	const handleCopy = async () => {
 		const text = tooltip.text;
@@ -393,15 +417,13 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 	};
 
 	const handleTouchEnd = (e) => {
-		if (!touchStartRef.current || !touchMoveRef.current) {
+		const start = touchStartRef.current;
+		const move = touchMoveRef.current;
+
+		if (!start || !move) {
 			const touch = e.changedTouches[0];
 			if (touch) {
-				setTimeout(() => {
-					const sel = window.getSelection();
-					if (sel && !sel.isCollapsed) {
-						showSelectionTooltip();
-					}
-				}, 100);
+				scheduleShowSelectionTooltip(120);
 			}
 			
 			touchStartRef.current = null;
@@ -409,9 +431,6 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 			return;
 		}
 
-		const start = touchStartRef.current;
-		const move = touchMoveRef.current;
-		
 		const deltaX = move.x - start.x;
 		const deltaY = move.y - start.y;
 		const deltaTime = Date.now() - start.time;
@@ -436,12 +455,20 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 			if (deltaX < 0 && currentPage < totalPages) {
 				e.preventDefault();
 				onPageChange(currentPage + 1);
+				touchStartRef.current = null;
+				touchMoveRef.current = null;
+				return;
 			}
 			else if (deltaX > 0 && currentPage > 1) {
 				e.preventDefault();
 				onPageChange(currentPage - 1);
+				touchStartRef.current = null;
+				touchMoveRef.current = null;
+				return;
 			}
 		}
+
+		scheduleShowSelectionTooltip(120);
 
 		touchStartRef.current = null;
 		touchMoveRef.current = null;
