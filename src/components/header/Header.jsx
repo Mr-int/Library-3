@@ -29,6 +29,11 @@ const Header = ({ theme = 'dark', setTheme, fontSize = 'medium', setFontSize }) 
     }, []);
 
     const performSearch = useCallback((query) => {
+        const selection = window.getSelection?.();
+        if (selection && !selection.isCollapsed) {
+            return;
+        }
+
         clearSearchHighlights();
 
         const trimmedQuery = query.trim();
@@ -81,6 +86,10 @@ const Header = ({ theme = 'dark', setTheme, fontSize = 'medium', setFontSize }) 
     useEffect(() => {
         const handleContentUpdated = () => {
             if (searchQueryRef.current.trim()) {
+                const selection = window.getSelection?.();
+                if (selection && !selection.isCollapsed) {
+                    return;
+                }
                 performSearch(searchQueryRef.current);
             } else {
                 clearSearchHighlights();
@@ -96,6 +105,10 @@ const Header = ({ theme = 'dark', setTheme, fontSize = 'medium', setFontSize }) 
 
     useEffect(() => {
         const frameId = requestAnimationFrame(() => {
+            const selection = window.getSelection?.();
+            if (selection && !selection.isCollapsed) {
+                return;
+            }
             performSearch(searchQueryRef.current);
         });
 

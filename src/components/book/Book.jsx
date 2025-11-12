@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import './Book.css';
 import { fetchEpubPages } from '../../api/books';
 import { addNote } from '../../utils/note';
@@ -146,7 +146,11 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 				return '';
 			}
 
-			let text = sel.toString();
+			const fragment = range.cloneContents();
+			const serializer = document.createElement('div');
+			serializer.appendChild(fragment);
+
+			let text = serializer.textContent ?? '';
 			
 			text = text
 				.replace(/[ \t]+/g, ' ')  
@@ -322,6 +326,13 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 		setTooltip(prev => ({ ...prev, visible: false }));
 		window.dispatchEvent(new CustomEvent('book:content-updated'));
 	}, [loading, pages]);
+
+	useLayoutEffect(() => {
+		if (loading) {
+			return;
+		}
+		window.dispatchEvent(new CustomEvent('book:content-updated'));
+	});
 
 	useEffect(() => {
 		return () => {
