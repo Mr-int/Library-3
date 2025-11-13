@@ -280,10 +280,6 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 		};
 
 		const handleSelectionChange = () => {
-			if (!isTouchSelectingRef.current) {
-				return;
-			}
-
 			const sel = window.getSelection();
 			if (!sel || sel.isCollapsed || sel.rangeCount === 0) {
 				hideTooltip();
@@ -303,7 +299,12 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 				return;
 			}
 
-			scheduleShowSelectionTooltip(140);
+			const isTouchEnv = ('ontouchstart' in window) || (navigator?.maxTouchPoints > 0);
+			if (isTouchEnv) {
+				isTouchSelectingRef.current = true;
+				suppressSwipeRef.current = true;
+				scheduleShowSelectionTooltip(80);
+			}
 		};
 
 		document.addEventListener('mouseup', onMouseUp);
@@ -493,10 +494,11 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 	};
 
 	const handleTouchStart = (e) => {
-		isTouchSelectingRef.current = true;
+		isTouchSelectingRef.current = false;
 		suppressSwipeRef.current = false;
 		const selection = window.getSelection();
 		if (selection && !selection.isCollapsed) {
+			isTouchSelectingRef.current = true;
 			return;
 		}
 
