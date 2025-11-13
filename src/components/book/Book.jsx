@@ -140,7 +140,7 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 				.replace(/\n{3,}/g, '\n\n')  
 				.trim();
 
-			return text.length > 1 ? text : ''; 
+			return text.length > 0 ? text : ''; 
 		} catch (error) {
 			return sel.toString().trim();
 		}
