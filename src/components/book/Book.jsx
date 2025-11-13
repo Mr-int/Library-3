@@ -34,6 +34,7 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 	const touchStartRef = useRef(null);
 	const touchMoveRef = useRef(null);
 	const isTouchSelectingRef = useRef(false);
+	const suppressSwipeRef = useRef(false);
 
 	const formatBookTitle = (title) => {
 		if (!title) return '';
@@ -493,6 +494,7 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 
 	const handleTouchStart = (e) => {
 		isTouchSelectingRef.current = true;
+		suppressSwipeRef.current = false;
 		const selection = window.getSelection();
 		if (selection && !selection.isCollapsed) {
 			return;
@@ -520,11 +522,36 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 				y: touch.clientY
 			};
 		}
+
+		// While selecting text, show tooltip live and disable swipe navigation
+		const sel = window.getSelection && window.getSelection();
+		const container = containerRef.current;
+		if (sel && !sel.isCollapsed && sel.rangeCount > 0 && container) {
+			const anchorNode = sel.anchorNode;
+			const focusNode = sel.focusNode;
+			if (container.contains(anchorNode) && container.contains(focusNode)) {
+				suppressSwipeRef.current = true;
+				scheduleShowSelectionTooltip(80);
+			}
+		}
 	};
 
 	const handleTouchEnd = (e) => {
 		const start = touchStartRef.current;
 		const move = touchMoveRef.current;
+
+		// If selection exists, prefer showing tooltip over swipe
+		const sel = window.getSelection && window.getSelection();
+		if (sel && !sel.isCollapsed && sel.rangeCount > 0) {
+			scheduleShowSelectionTooltip(120);
+			touchStartRef.current = null;
+			touchMoveRef.current = null;
+			setTimeout(() => {
+				isTouchSelectingRef.current = false;
+				suppressSwipeRef.current = false;
+			}, 200);
+			return;
+		}
 
 		if (!start || !move) {
 			const touch = e.changedTouches[0];
@@ -536,6 +563,7 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 			touchMoveRef.current = null;
 			setTimeout(() => {
 				isTouchSelectingRef.current = false;
+				suppressSwipeRef.current = false;
 			}, 250);
 			return;
 		}
@@ -555,6 +583,7 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 			: 0;
 
 		if (
+			!suppressSwipeRef.current &&
 			absDeltaX >= minSwipeDistance &&
 			isHorizontalSwipe &&
 			deltaTime <= maxSwipeTime &&
@@ -566,6 +595,7 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 				onPageChange(currentPage + 1);
 				touchStartRef.current = null;
 				touchMoveRef.current = null;
+				suppressSwipeRef.current = false;
 				isTouchSelectingRef.current = false;
 				return;
 			}
@@ -574,6 +604,7 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 				onPageChange(currentPage - 1);
 				touchStartRef.current = null;
 				touchMoveRef.current = null;
+				suppressSwipeRef.current = false;
 				isTouchSelectingRef.current = false;
 				return;
 			}
@@ -585,6 +616,7 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 		touchMoveRef.current = null;
 		setTimeout(() => {
 			isTouchSelectingRef.current = false;
+			suppressSwipeRef.current = false;
 		}, 250);
 	};
 
