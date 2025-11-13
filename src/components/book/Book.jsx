@@ -352,17 +352,79 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 
 	const bookmarkImg = document.documentElement.getAttribute('data-theme') === 'light' ? lightBookmarkIcon : bookmarkIcon;
 
+	const transformHtmlForSelection = useCallback((html) => {
+		if (typeof document === 'undefined' || !html) {
+			return html;
+		}
+
+		try {
+			const template = document.createElement('template');
+			template.innerHTML = html;
+
+			const walker = document.createTreeWalker(
+				template.content,
+				NodeFilter.SHOW_TEXT,
+				{
+					acceptNode: (node) => {
+						if (!node.nodeValue) return NodeFilter.FILTER_REJECT;
+						return /\S/.test(node.nodeValue)
+							? NodeFilter.FILTER_ACCEPT
+							: NodeFilter.FILTER_REJECT;
+					}
+				}
+			);
+
+			const nodesToProcess = [];
+			let current = walker.nextNode();
+			while (current) {
+				nodesToProcess.push(current);
+				current = walker.nextNode();
+			}
+
+			nodesToProcess.forEach((textNode) => {
+				const value = textNode.nodeValue;
+				if (!value) return;
+
+				const parts = value.split(/(\s+)/);
+				const fragment = document.createDocumentFragment();
+
+				parts.forEach((part) => {
+					if (part.length === 0) {
+						return;
+					}
+					if (/^\s+$/.test(part)) {
+						fragment.appendChild(document.createTextNode(part));
+					} else {
+						const span = document.createElement('span');
+						span.className = 'content-word';
+						span.textContent = part;
+						fragment.appendChild(span);
+					}
+				});
+
+				textNode.parentNode?.replaceChild(fragment, textNode);
+			});
+
+			return template.innerHTML;
+		} catch (error) {
+			return html;
+		}
+	}, []);
+
 	const renderPageContent = () => {
 		if (!Array.isArray(currentPageData)) return null;
 
-		return currentPageData.map((html, index) => (
-			<div
-				key={index}
-				className="content-text"
-				data-original-html={html}
-				dangerouslySetInnerHTML={{ __html: html }}
-			/>
-		));
+		return currentPageData.map((html, index) => {
+			const transformed = transformHtmlForSelection(html);
+			return (
+				<div
+					key={index}
+					className="content-text"
+					data-original-html={html}
+					dangerouslySetInnerHTML={{ __html: transformed }}
+				/>
+			);
+		});
 	};
 
 	const handleTouchStart = (e) => {

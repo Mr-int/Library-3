@@ -55,6 +55,14 @@
     -webkit-user-select: text;
 }
 
+.content-word {
+    display: inline;
+    user-select: text;
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+}
+
 .content-text p {
     margin-bottom: 1em;
     color: var(--text-color);
