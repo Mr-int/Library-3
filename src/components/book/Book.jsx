@@ -33,6 +33,7 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 	
 	const touchStartRef = useRef(null);
 	const touchMoveRef = useRef(null);
+	const touchActiveRef = useRef(false);
 	const isTouchSelectingRef = useRef(false);
 	const suppressSwipeRef = useRef(false);
 
@@ -55,8 +56,9 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 			setError('');
 
 			try {
-				const from = Math.max(1, currentPage - 4);
-				const to = currentPage + 4;
+				const targetIndex = Math.max(0, currentPage - 1);
+				const from = Math.max(0, targetIndex - 4);
+				const to = targetIndex + 4;
 
 				const data = await fetchEpubPages({
 					path: bookPath,
@@ -73,7 +75,7 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 				setMeta({ title: respTitle, author: respAuthor });
 
 				if (respPages.length > 0) {
-					const currentPageIndex = currentPage - from;
+					const currentPageIndex = targetIndex - from;
 					if (currentPageIndex >= 0 && currentPageIndex < respPages.length) {
 						setPages([respPages[currentPageIndex]]);
 					} else {
@@ -150,6 +152,7 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 
 		const attrToRemove = ['unselectable', 'onselectstart', 'onmousedown', 'draggable', 'ondragstart', 'ondrag'];
 		const styleTokens = ['user-select', '-webkit-user-select', '-moz-user-select', '-ms-user-select', '-webkit-touch-callout', '-webkit-user-drag'];
+		const classTokens = ['noselect', 'no-select', 'unselectable', 'disable-select', 'text-unselectable'];
 
 		const nodes = container.querySelectorAll('.content-text, .content-text *');
 		nodes.forEach((node) => {
@@ -161,6 +164,7 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 					node.removeAttribute(attr);
 				}
 			});
+
 			if (node.hasAttribute('style')) {
 				const styleValue = node.getAttribute('style') || '';
 				const filtered = styleValue
@@ -178,6 +182,14 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 					node.removeAttribute('style');
 				}
 			}
+
+			if (node.classList.length > 0) {
+				classTokens.forEach((token) => {
+					if (node.classList.contains(token)) {
+						node.classList.remove(token);
+					}
+				});
+			}
 		});
 
 		const styleTags = container.querySelectorAll('.content-text style');
@@ -189,6 +201,7 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 			clearTimeout(selectionTimeoutRef.current);
 			selectionTimeoutRef.current = null;
 		}
+		touchActiveRef.current = false;
 		isTouchSelectingRef.current = false;
 		suppressSwipeRef.current = false;
 		setTooltip(prev => ({ ...prev, visible: false }));
@@ -264,7 +277,7 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 		}
 	}, [getSelectionText, hideTooltip]);
 
-	const scheduleShowSelectionTooltip = useCallback((delay = 100) => {
+	const scheduleShowSelectionTooltip = useCallback((delay = 80) => {
 		if (selectionTimeoutRef.current) {
 			clearTimeout(selectionTimeoutRef.current);
 		}
@@ -446,12 +459,12 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 	};
 
 	const handleTouchStart = (e) => {
+		touchActiveRef.current = true;
 		isTouchSelectingRef.current = false;
 		suppressSwipeRef.current = false;
 		const selection = window.getSelection();
 		if (selection && !selection.isCollapsed) {
 			isTouchSelectingRef.current = true;
-			return;
 		}
 
 		const touch = e.touches[0];
@@ -477,27 +490,21 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 			};
 		}
 
-		// While selecting text, show tooltip live and disable swipe navigation
-		const sel = window.getSelection && window.getSelection();
-		const container = containerRef.current;
-		if (sel && !sel.isCollapsed && sel.rangeCount > 0 && container) {
-			const anchorNode = sel.anchorNode;
-			const focusNode = sel.focusNode;
-			if (container.contains(anchorNode) && container.contains(focusNode)) {
-				isTouchSelectingRef.current = true;
-				suppressSwipeRef.current = true;
-				scheduleShowSelectionTooltip(80);
-			}
-		}
+		// keep swipe threshold data; selection updates handled via selectionchange
 	};
 
 	const handleTouchEnd = (e) => {
+		touchActiveRef.current = false;
 		const start = touchStartRef.current;
 		const move = touchMoveRef.current;
 
-		// If selection exists, prefer showing tooltip over swipe
 		const sel = window.getSelection && window.getSelection();
-		if (sel && !sel.isCollapsed && sel.rangeCount > 0) {
+		const container = containerRef.current;
+		const selectionActive = !!(sel && !sel.isCollapsed && sel.rangeCount > 0 && container && container.contains(sel.anchorNode) && container.contains(sel.focusNode));
+
+		if (selectionActive) {
+			isTouchSelectingRef.current = true;
+			suppressSwipeRef.current = true;
 			scheduleShowSelectionTooltip(120);
 			touchStartRef.current = null;
 			touchMoveRef.current = null;
@@ -561,20 +568,18 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 			}
 		}
 
-		scheduleShowSelectionTooltip(160);
-
 		touchStartRef.current = null;
 		touchMoveRef.current = null;
-		setTimeout(() => {
-			isTouchSelectingRef.current = false;
-			suppressSwipeRef.current = false;
-		}, 250);
+		isTouchSelectingRef.current = false;
+		suppressSwipeRef.current = false;
 	};
 
 	const handleTouchCancel = () => {
 		touchStartRef.current = null;
 		touchMoveRef.current = null;
+		touchActiveRef.current = false;
 		isTouchSelectingRef.current = false;
+		suppressSwipeRef.current = false;
 		hideTooltip();
 	};
 
