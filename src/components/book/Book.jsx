@@ -191,16 +191,31 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 			
 			const containerRect = container.getBoundingClientRect();
 
+			const centerX = rect.left + rect.width / 2;
 			const x = Math.min(
-				Math.max(rect.left + rect.width / 2, containerRect.left + 12),
+				Math.max(centerX, containerRect.left + 12),
 				containerRect.right - 12
 			);
-			const y = Math.max(rect.top, containerRect.top + 12);
+
+			const isTouch = isTouchSelectingRef.current || ('ontouchstart' in window) || (navigator?.maxTouchPoints > 0);
+			let y;
+			if (isTouch) {
+				// place below selection to avoid overlapping native menu
+				const desired = rect.bottom + 16;
+				const maxTop = containerRect.bottom - 56; // keep inside container
+				const minTop = containerRect.top + 12;
+				y = Math.min(Math.max(desired, minTop), maxTop);
+			} else {
+				// desktop: place above selection
+				const desired = rect.top - 40;
+				const minTop = containerRect.top + 12;
+				y = Math.max(desired, minTop);
+			}
 
 			setTooltip({
 				visible: true,
 				x: x - containerRect.left,
-				y: y - containerRect.top - 40,
+				y: y - containerRect.top,
 				text
 			});
 		} catch (error) {
