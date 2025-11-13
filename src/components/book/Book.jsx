@@ -361,49 +361,81 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 			const template = document.createElement('template');
 			template.innerHTML = html;
 
-			const walker = document.createTreeWalker(
+			const elementsWalker = document.createTreeWalker(
 				template.content,
-				NodeFilter.SHOW_TEXT,
-				{
-					acceptNode: (node) => {
-						if (!node.nodeValue) return NodeFilter.FILTER_REJECT;
-						return /\S/.test(node.nodeValue)
-							? NodeFilter.FILTER_ACCEPT
-							: NodeFilter.FILTER_REJECT;
-					}
-				}
+				NodeFilter.SHOW_ELEMENT,
+				null
 			);
 
-			const nodesToProcess = [];
-			let current = walker.nextNode();
+			const tokensToStrip = [
+				'user-select',
+				'-webkit-user-select',
+				'-moz-user-select',
+				'-ms-user-select',
+				'-webkit-touch-callout',
+				'-webkit-user-drag'
+			];
+
+			const attrToRemove = [
+				'unselectable',
+				'onselectstart',
+				'onselect',
+				'onmousedown',
+				'draggable',
+				'ondragstart',
+				'ondrag'
+			];
+
+			const classTokensToRemove = ['noselect', 'no-select', 'unselectable', 'disable-select'];
+
+			let current = elementsWalker.nextNode();
 			while (current) {
-				nodesToProcess.push(current);
-				current = walker.nextNode();
-			}
+				const el = current;
+				current = elementsWalker.nextNode();
 
-			nodesToProcess.forEach((textNode) => {
-				const value = textNode.nodeValue;
-				if (!value) return;
+				if (!(el instanceof HTMLElement)) {
+					continue;
+				}
 
-				const parts = value.split(/(\s+)/);
-				const fragment = document.createDocumentFragment();
-
-				parts.forEach((part) => {
-					if (part.length === 0) {
-						return;
-					}
-					if (/^\s+$/.test(part)) {
-						fragment.appendChild(document.createTextNode(part));
-					} else {
-						const span = document.createElement('span');
-						span.className = 'content-word';
-						span.textContent = part;
-						fragment.appendChild(span);
+				attrToRemove.forEach((attr) => {
+					if (el.hasAttribute(attr)) {
+						el.removeAttribute(attr);
 					}
 				});
 
-				textNode.parentNode?.replaceChild(fragment, textNode);
-			});
+				const className = el.getAttribute('class');
+				if (className) {
+					const filteredClasses = className
+						.split(/\s+/)
+						.filter((token) => token && !classTokensToRemove.includes(token.toLowerCase()));
+					if (filteredClasses.length !== className.split(/\s+/).length) {
+						if (filteredClasses.length > 0) {
+							el.setAttribute('class', filteredClasses.join(' '));
+						} else {
+							el.removeAttribute('class');
+						}
+					}
+				}
+
+				if (el.hasAttribute('style')) {
+					const styleValue = el.getAttribute('style') || '';
+					const filteredStyle = styleValue
+						.split(';')
+						.map((part) => part.trim())
+						.filter((part) => {
+							if (!part) return false;
+							const lower = part.toLowerCase();
+							return !tokensToStrip.some((token) => lower.startsWith(token));
+						})
+						.join('; ');
+
+					if (filteredStyle) {
+						el.setAttribute('style', filteredStyle);
+					} else {
+						el.removeAttribute('style');
+					}
+				}
+			}
 
 			return template.innerHTML;
 		} catch (error) {
