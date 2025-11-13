@@ -104,6 +104,21 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 
 	const currentPageData = pages[0] || [];
 
+	const findContentWrapper = useCallback((node) => {
+		if (!node) return null;
+		let current = node.nodeType === Node.TEXT_NODE ? node.parentNode : node;
+		while (current) {
+			if (current.classList && current.classList.contains('content-text')) {
+				return current;
+			}
+			if (current === containerRef.current || current === document.body) {
+				break;
+			}
+			current = current.parentNode;
+		}
+		return null;
+	}, []);
+
 	const getSelectionText = useCallback(() => {
 		const sel = window.getSelection && window.getSelection();
 		if (!sel || sel.isCollapsed || sel.rangeCount === 0) return '';
@@ -116,33 +131,16 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 				return sel.toString().trim();
 			}
 
-			const contentElements = container.querySelectorAll('.content-text');
-			let isInContent = false;
-			
 			const commonAncestor = range.commonAncestorContainer;
 			const nodeToCheck = commonAncestor.nodeType === Node.TEXT_NODE 
 				? commonAncestor.parentNode 
 				: commonAncestor;
 			
-			for (const contentEl of contentElements) {
-				if (contentEl.contains(nodeToCheck) || contentEl === nodeToCheck) {
-					const startContainer = range.startContainer;
-					const endContainer = range.endContainer;
-					const startNode = startContainer.nodeType === Node.TEXT_NODE 
-						? startContainer.parentNode 
-						: startContainer;
-					const endNode = endContainer.nodeType === Node.TEXT_NODE 
-						? endContainer.parentNode 
-						: endContainer;
-					
-					if (contentEl.contains(startNode) && contentEl.contains(endNode)) {
-						isInContent = true;
-						break;
-					}
-				}
-			}
+			const startWrapper = findContentWrapper(range.startContainer);
+			const endWrapper = findContentWrapper(range.endContainer);
+			const ancestorWrapper = findContentWrapper(nodeToCheck);
 
-			if (!isInContent) {
+			if (!startWrapper || !endWrapper || !ancestorWrapper) {
 				return '';
 			}
 
@@ -188,7 +186,15 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 		
 		try {
 			const rangeObj = sel.getRangeAt(0);
-			const rect = rangeObj.getBoundingClientRect();
+			let rect = rangeObj.getBoundingClientRect();
+			if (rect.width === 0 && rect.height === 0) {
+				const rects = Array.from(rangeObj.getClientRects());
+				const viable = rects.find((r) => r.width > 1 || r.height > 1);
+				if (viable) {
+					rect = viable;
+				}
+			}
+
 			const container = containerRef.current;
 			if (!container) {
 				hideTooltip();
@@ -214,7 +220,7 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 		}
 	}, [getSelectionText, hideTooltip]);
 
-	const scheduleShowSelectionTooltip = useCallback((delay = 80) => {
+	const scheduleShowSelectionTooltip = useCallback((delay = 100) => {
 		if (selectionTimeoutRef.current) {
 			clearTimeout(selectionTimeoutRef.current);
 		}
@@ -239,39 +245,16 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 				return;
 			}
 
-			const contentElements = container.querySelectorAll('.content-text');
 			const range = sel.getRangeAt(0);
-			let isInContent = false;
+			const startWrapper = findContentWrapper(range.startContainer);
+			const endWrapper = findContentWrapper(range.endContainer);
 
-			const commonAncestor = range.commonAncestorContainer;
-			const nodeToCheck = commonAncestor.nodeType === Node.TEXT_NODE 
-				? commonAncestor.parentNode 
-				: commonAncestor;
-
-			for (const contentEl of contentElements) {
-				try {
-					if (contentEl.contains(nodeToCheck) || contentEl === nodeToCheck) {
-						const startContainer = range.startContainer;
-						const endContainer = range.endContainer;
-						const startNode = startContainer.nodeType === Node.TEXT_NODE 
-							? startContainer.parentNode 
-							: startContainer;
-						const endNode = endContainer.nodeType === Node.TEXT_NODE 
-							? endContainer.parentNode 
-							: endContainer;
-						
-						if (contentEl.contains(startNode) && contentEl.contains(endNode)) {
-							isInContent = true;
-							break;
-						}
-					}
-				} catch (e) {
-				}
-			}
-
-			if (isInContent) {
-				const delay = touchStartRef.current ? 0 : 80;
+			if (startWrapper && endWrapper) {
+				const delay = touchStartRef.current ? 140 : 80;
 				scheduleShowSelectionTooltip(delay);
+				if (touchStartRef.current) {
+					touchStartRef.current = null;
+				}
 			} else {
 				hideTooltip();
 			}
@@ -432,7 +415,7 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 		if (!start || !move) {
 			const touch = e.changedTouches[0];
 			if (touch) {
-				scheduleShowSelectionTooltip(160);
+				scheduleShowSelectionTooltip(200);
 			}
 			
 			touchStartRef.current = null;
