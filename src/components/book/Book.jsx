@@ -150,6 +150,34 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 		setTooltip(prev => ({ ...prev, visible: false }));
 	}, []);
 
+	const enforceSelectableContent = useCallback(() => {
+		const container = containerRef.current;
+		if (!container) return;
+
+		const selectableNodes = container.querySelectorAll('.content-text, .content-text *');
+		selectableNodes.forEach((node) => {
+			if (!(node instanceof HTMLElement)) {
+				return;
+			}
+			node.removeAttribute('unselectable');
+			node.removeAttribute('onselectstart');
+			node.removeAttribute('onmousedown');
+			node.removeAttribute('draggable');
+			if (node.style) {
+				node.style.removeProperty('user-select');
+				node.style.removeProperty('-webkit-user-select');
+				node.style.removeProperty('-moz-user-select');
+				node.style.removeProperty('-ms-user-select');
+				node.style.removeProperty('-webkit-touch-callout');
+			}
+		});
+
+		const styleTags = container.querySelectorAll('.content-text style');
+		styleTags.forEach((styleTag) => {
+			styleTag.remove();
+		});
+	}, []);
+
 	const showSelectionTooltip = useCallback(() => {
 		const sel = window.getSelection();
 		if (!sel || sel.rangeCount === 0) {
@@ -290,16 +318,18 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 		if (loading) {
 			return;
 		}
+		enforceSelectableContent();
 		setTooltip(prev => ({ ...prev, visible: false }));
 		window.dispatchEvent(new CustomEvent('book:content-updated'));
-	}, [loading, pages]);
+	}, [loading, pages, enforceSelectableContent]);
 
 	useLayoutEffect(() => {
 		if (loading) {
 			return;
 		}
+		enforceSelectableContent();
 		window.dispatchEvent(new CustomEvent('book:content-updated'));
-	});
+	}, [loading, enforceSelectableContent]);
 
 	useEffect(() => {
 		return () => {
