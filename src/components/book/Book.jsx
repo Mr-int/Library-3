@@ -104,21 +104,6 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 
 	const currentPageData = pages[0] || [];
 
-	const findContentWrapper = useCallback((node) => {
-		if (!node) return null;
-		let current = node.nodeType === Node.TEXT_NODE ? node.parentNode : node;
-		while (current) {
-			if (current.classList && current.classList.contains('content-text')) {
-				return current;
-			}
-			if (current === containerRef.current || current === document.body) {
-				break;
-			}
-			current = current.parentNode;
-		}
-		return null;
-	}, []);
-
 	const getSelectionText = useCallback(() => {
 		const sel = window.getSelection && window.getSelection();
 		if (!sel || sel.isCollapsed || sel.rangeCount === 0) return '';
@@ -131,16 +116,10 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 				return sel.toString().trim();
 			}
 
-			const commonAncestor = range.commonAncestorContainer;
-			const nodeToCheck = commonAncestor.nodeType === Node.TEXT_NODE 
-				? commonAncestor.parentNode 
-				: commonAncestor;
-			
-			const startWrapper = findContentWrapper(range.startContainer);
-			const endWrapper = findContentWrapper(range.endContainer);
-			const ancestorWrapper = findContentWrapper(nodeToCheck);
+			const anchorNode = sel.anchorNode;
+			const focusNode = sel.focusNode;
 
-			if (!startWrapper || !endWrapper || !ancestorWrapper) {
+			if (!container.contains(anchorNode) || !container.contains(focusNode)) {
 				return '';
 			}
 
@@ -200,6 +179,14 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 				hideTooltip();
 				return;
 			}
+
+			const anchorNode = sel.anchorNode;
+			const focusNode = sel.focusNode;
+
+			if (!container.contains(anchorNode) || !container.contains(focusNode)) {
+				hideTooltip();
+				return;
+			}
 			
 			const containerRect = container.getBoundingClientRect();
 
@@ -245,18 +232,18 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 				return;
 			}
 
-			const range = sel.getRangeAt(0);
-			const startWrapper = findContentWrapper(range.startContainer);
-			const endWrapper = findContentWrapper(range.endContainer);
+			const anchorNode = sel.anchorNode;
+			const focusNode = sel.focusNode;
 
-			if (startWrapper && endWrapper) {
-				const delay = touchStartRef.current ? 140 : 80;
-				scheduleShowSelectionTooltip(delay);
-				if (touchStartRef.current) {
-					touchStartRef.current = null;
-				}
-			} else {
+			if (!container.contains(anchorNode) || !container.contains(focusNode)) {
 				hideTooltip();
+				return;
+			}
+
+			const delay = touchStartRef.current ? 140 : 80;
+			scheduleShowSelectionTooltip(delay);
+			if (touchStartRef.current) {
+				touchStartRef.current = null;
 			}
 		};
 
