@@ -6,10 +6,11 @@
     width: 100%;
     background-color: var(--bg-color);
     color: var(--text-color);
-    display: flex;
-    justify-content: center;
     user-select: text;
     -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+    -webkit-touch-callout: default;
 }
 
 .page {
@@ -45,14 +46,20 @@
     word-wrap: break-word;
     overflow-wrap: break-word;
     word-break: break-word;
-    user-select: text;
-    -webkit-user-select: text;
+    user-select: text !important;
+    -webkit-user-select: text !important;
+    -moz-user-select: text !important;
+    -ms-user-select: text !important;
+    -webkit-touch-callout: default !important;
     cursor: text;
 }
 
 .content-text * {
-    user-select: text;
-    -webkit-user-select: text;
+    user-select: text !important;
+    -webkit-user-select: text !important;
+    -moz-user-select: text !important;
+    -ms-user-select: text !important;
+    -webkit-touch-callout: default !important;
 }
 
 .content-text p {
@@ -62,6 +69,10 @@
     overflow-wrap: break-word;
     word-break: break-word;
     display: block;
+    user-select: text !important;
+    -webkit-user-select: text !important;
+    -moz-user-select: text !important;
+    -ms-user-select: text !important;
 }
 
 .content-text::selection {

@@ -154,6 +154,16 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 		const styleTokens = ['user-select', '-webkit-user-select', '-moz-user-select', '-ms-user-select', '-webkit-touch-callout', '-webkit-user-drag'];
 		const classTokens = ['noselect', 'no-select', 'unselectable', 'disable-select', 'text-unselectable'];
 
+		const forceSelectable = (element) => {
+			element.style.setProperty('user-select', 'text', 'important');
+			element.style.setProperty('-webkit-user-select', 'text', 'important');
+			element.style.setProperty('-moz-user-select', 'text', 'important');
+			element.style.setProperty('-ms-user-select', 'text', 'important');
+			element.style.setProperty('-webkit-touch-callout', 'default', 'important');
+		};
+
+		forceSelectable(container);
+
 		const nodes = container.querySelectorAll('.content-text, .content-text *');
 		nodes.forEach((node) => {
 			if (!(node instanceof HTMLElement)) {
@@ -190,6 +200,8 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 					}
 				});
 			}
+
+			forceSelectable(node);
 		});
 
 		const styleTags = container.querySelectorAll('.content-text style');
@@ -201,9 +213,6 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 			clearTimeout(selectionTimeoutRef.current);
 			selectionTimeoutRef.current = null;
 		}
-		touchActiveRef.current = false;
-		isTouchSelectingRef.current = false;
-		suppressSwipeRef.current = false;
 		setTooltip(prev => ({ ...prev, visible: false }));
 	}, []);
 
