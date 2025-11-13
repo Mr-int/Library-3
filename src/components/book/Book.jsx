@@ -219,40 +219,29 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 	}, [showSelectionTooltip]);
 
 	useEffect(() => {
-		const handleSelectionChange = () => {
-			const sel = window.getSelection();
-			if (!sel || sel.isCollapsed || sel.rangeCount === 0) {
-				hideTooltip();
-				return;
-			}
-
-			const container = containerRef.current;
-			if (!container) {
-				hideTooltip();
-				return;
-			}
-
-			const anchorNode = sel.anchorNode;
-			const focusNode = sel.focusNode;
-
-			if (!container.contains(anchorNode) || !container.contains(focusNode)) {
-				hideTooltip();
-				return;
-			}
-
-			const delay = touchStartRef.current ? 140 : 80;
-			scheduleShowSelectionTooltip(delay);
-			if (touchStartRef.current) {
-				touchStartRef.current = null;
-			}
-		};
-
 		const onMouseUp = (e) => {
 			if (tooltipRef.current && tooltipRef.current.contains(e.target)) {
 				return;
 			}
-			setTimeout(handleSelectionChange, 50);
-			scheduleShowSelectionTooltip();
+			setTimeout(() => {
+				const sel = window.getSelection();
+				if (!sel || sel.isCollapsed || sel.rangeCount === 0) {
+					hideTooltip();
+					return;
+				}
+				const container = containerRef.current;
+				if (!container) {
+					hideTooltip();
+					return;
+				}
+				const anchorNode = sel.anchorNode;
+				const focusNode = sel.focusNode;
+				if (!container.contains(anchorNode) || !container.contains(focusNode)) {
+					hideTooltip();
+					return;
+				}
+				scheduleShowSelectionTooltip(80);
+			}, 40);
 		};
 
 		const handleClickOutside = (e) => {
@@ -275,13 +264,11 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 
 		document.addEventListener('mouseup', onMouseUp);
 		document.addEventListener('mousedown', handleClickOutside);
-		document.addEventListener('selectionchange', handleSelectionChange);
 		containerRef.current?.addEventListener('scroll', onScroll, { passive: true });
 
 		return () => {
 			document.removeEventListener('mouseup', onMouseUp);
 			document.removeEventListener('mousedown', handleClickOutside);
-			document.removeEventListener('selectionchange', handleSelectionChange);
 			containerRef.current?.removeEventListener('scroll', onScroll);
 		};
 	}, [hideTooltip, scheduleShowSelectionTooltip]);
