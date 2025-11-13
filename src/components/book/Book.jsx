@@ -227,10 +227,6 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 
 	useEffect(() => {
 		const handleSelectionChange = () => {
-			if (touchStartRef.current) {
-				return;
-			}
-
 			const sel = window.getSelection();
 			if (!sel || sel.isCollapsed || sel.rangeCount === 0) {
 				hideTooltip();
@@ -274,7 +270,8 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 			}
 
 			if (isInContent) {
-				scheduleShowSelectionTooltip();
+				const delay = touchStartRef.current ? 0 : 80;
+				scheduleShowSelectionTooltip(delay);
 			} else {
 				hideTooltip();
 			}

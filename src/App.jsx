@@ -1,8 +1,60 @@
-import { useEffect, useState, useCallback } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Header from "./components/header/Header.jsx";
 import Book from "./components/book/Book.jsx";
 import Footer from "./components/footer/Footer.jsx";
 import './App.css';
+
+const COOKIE_PREFIX = 'book_page_';
+const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
+
+const resolveBookIdentifier = (search) => {
+    try {
+        const params = new URLSearchParams(search);
+        const path = params.get('path') || '';
+        const title = params.get('title') || '';
+        return path || title || 'default';
+    } catch (e) {
+        return 'default';
+    }
+};
+
+const readCookiePage = (bookId) => {
+    if (typeof document === 'undefined' || !bookId) {
+        return null;
+    }
+    const name = `${COOKIE_PREFIX}${encodeURIComponent(bookId)}=`;
+    const cookies = document.cookie ? document.cookie.split('; ') : [];
+    for (const cookie of cookies) {
+        if (cookie.startsWith(name)) {
+            const value = decodeURIComponent(cookie.slice(name.length));
+            const page = parseInt(value, 10);
+            return Number.isFinite(page) && page > 0 ? page : null;
+        }
+    }
+    return null;
+};
+
+const writeCookiePage = (bookId, page) => {
+    if (typeof document === 'undefined' || !bookId || !page) {
+        return;
+    }
+    const normalizedPage = Math.max(1, Math.floor(page));
+    const name = `${COOKIE_PREFIX}${encodeURIComponent(bookId)}`;
+    document.cookie = `${name}=${encodeURIComponent(normalizedPage)}; path=/; max-age=${COOKIE_MAX_AGE_SECONDS}`;
+};
+
+const snapshotInitialState = () => {
+    if (typeof window === 'undefined') {
+        return { bookId: 'default', page: 1 };
+    }
+    const { search } = window.location;
+    const params = new URLSearchParams(search);
+    const bookId = resolveBookIdentifier(search);
+    const cookiePage = readCookiePage(bookId);
+    const queryPage = parseInt(params.get('page'), 10);
+    const initialPage = cookiePage || (Number.isFinite(queryPage) && queryPage > 0 ? queryPage : 1);
+    return { bookId, page: initialPage };
+};
 
 const App = () => {
     const [theme, setTheme] = useState(() => {
@@ -14,13 +66,11 @@ const App = () => {
         return saved === 'small' || saved === 'large' ? saved : 'medium';
     });
 
-    const getInitialPage = () => {
-        if (typeof window === 'undefined') return 1;
-        const urlParams = new URLSearchParams(window.location.search);
-        return parseInt(urlParams.get('page')) || 1;
-    };
+    const bookIdRef = useRef('default');
+    const [{ page: initialPage, bookId: initialBookId }] = useState(snapshotInitialState);
+    bookIdRef.current = initialBookId;
 
-    const [currentPage, setCurrentPage] = useState(getInitialPage);
+    const [currentPage, setCurrentPage] = useState(initialPage);
     const [totalPages, setTotalPages] = useState(10);
 
     useEffect(() => {
@@ -61,11 +111,38 @@ const App = () => {
         };
     }, []);
 
+    useEffect(() => {
+        if (typeof window === 'undefined') {
+            return;
+        }
+        const handler = () => {
+            const { bookId, page } = snapshotInitialState();
+            bookIdRef.current = bookId;
+            setCurrentPage(page);
+        };
+        window.addEventListener('popstate', handler);
+        return () => {
+            window.removeEventListener('popstate', handler);
+        };
+    }, []);
+
+    useEffect(() => {
+        if (!bookIdRef.current) {
+            return;
+        }
+        writeCookiePage(bookIdRef.current, currentPage);
+    }, [currentPage]);
+
     const handlePageChange = useCallback((newPage) => {
         setCurrentPage(newPage);
-        const url = new URL(window.location);
-        url.searchParams.set('page', newPage);
-        window.history.pushState({}, '', url);
+        if (typeof window !== 'undefined') {
+            const url = new URL(window.location);
+            url.searchParams.set('page', newPage);
+            window.history.pushState({}, '', url);
+        }
+        if (bookIdRef.current) {
+            writeCookiePage(bookIdRef.current, newPage);
+        }
     }, []);
 
     const handleTotalPagesChange = useCallback((total) => {
