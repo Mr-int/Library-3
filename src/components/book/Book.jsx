@@ -144,11 +144,53 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 		}
 	}, []);
 
+	const ensureSelectableContent = useCallback(() => {
+		const container = containerRef.current;
+		if (!container) return;
+
+		const attrToRemove = ['unselectable', 'onselectstart', 'onmousedown', 'draggable', 'ondragstart', 'ondrag'];
+		const styleTokens = ['user-select', '-webkit-user-select', '-moz-user-select', '-ms-user-select', '-webkit-touch-callout', '-webkit-user-drag'];
+
+		const nodes = container.querySelectorAll('.content-text, .content-text *');
+		nodes.forEach((node) => {
+			if (!(node instanceof HTMLElement)) {
+				return;
+			}
+			attrToRemove.forEach((attr) => {
+				if (node.hasAttribute(attr)) {
+					node.removeAttribute(attr);
+				}
+			});
+			if (node.hasAttribute('style')) {
+				const styleValue = node.getAttribute('style') || '';
+				const filtered = styleValue
+					.split(';')
+					.map((part) => part.trim())
+					.filter((part) => {
+						if (!part) return false;
+						const lower = part.toLowerCase();
+						return !styleTokens.some((token) => lower.startsWith(token));
+					})
+					.join('; ');
+				if (filtered) {
+					node.setAttribute('style', filtered);
+				} else {
+					node.removeAttribute('style');
+				}
+			}
+		});
+
+		const styleTags = container.querySelectorAll('.content-text style');
+		styleTags.forEach((styleTag) => styleTag.remove());
+	}, []);
+
 	const hideTooltip = useCallback(() => {
 		if (selectionTimeoutRef.current) {
 			clearTimeout(selectionTimeoutRef.current);
 			selectionTimeoutRef.current = null;
 		}
+		isTouchSelectingRef.current = false;
+		suppressSwipeRef.current = false;
 		setTooltip(prev => ({ ...prev, visible: false }));
 	}, []);
 
@@ -198,16 +240,14 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 				containerRect.right - 12
 			);
 
-			const isTouch = isTouchSelectingRef.current || ('ontouchstart' in window) || (navigator?.maxTouchPoints > 0);
+			const preferBelow = isTouchSelectingRef.current;
 			let y;
-			if (isTouch) {
-				// place below selection to avoid overlapping native menu
+			if (preferBelow) {
 				const desired = rect.bottom + 16;
-				const maxTop = containerRect.bottom - 56; // keep inside container
+				const maxTop = containerRect.bottom - 56;
 				const minTop = containerRect.top + 12;
 				y = Math.min(Math.max(desired, minTop), maxTop);
 			} else {
-				// desktop: place above selection
 				const desired = rect.top - 40;
 				const minTop = containerRect.top + 12;
 				y = Math.max(desired, minTop);
@@ -299,11 +339,15 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 				return;
 			}
 
-			const isTouchEnv = ('ontouchstart' in window) || (navigator?.maxTouchPoints > 0);
-			if (isTouchEnv) {
+			if (touchStartRef.current) {
 				isTouchSelectingRef.current = true;
+			}
+
+			if (isTouchSelectingRef.current) {
 				suppressSwipeRef.current = true;
 				scheduleShowSelectionTooltip(80);
+			} else {
+				scheduleShowSelectionTooltip(60);
 			}
 		};
 
@@ -324,16 +368,18 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 		if (loading) {
 			return;
 		}
+		ensureSelectableContent();
 		setTooltip(prev => ({ ...prev, visible: false }));
 		window.dispatchEvent(new CustomEvent('book:content-updated'));
-	}, [loading, pages]);
+	}, [loading, pages, ensureSelectableContent]);
 
 	useLayoutEffect(() => {
 		if (loading) {
 			return;
 		}
+		ensureSelectableContent();
 		window.dispatchEvent(new CustomEvent('book:content-updated'));
-	});
+	}, [loading, ensureSelectableContent]);
 
 	useEffect(() => {
 		return () => {
@@ -386,111 +432,17 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 
 	const bookmarkImg = document.documentElement.getAttribute('data-theme') === 'light' ? lightBookmarkIcon : bookmarkIcon;
 
-	const transformHtmlForSelection = useCallback((html) => {
-		if (typeof document === 'undefined' || !html) {
-			return html;
-		}
-
-		try {
-			const template = document.createElement('template');
-			template.innerHTML = html;
-
-			const elementsWalker = document.createTreeWalker(
-				template.content,
-				NodeFilter.SHOW_ELEMENT,
-				null
-			);
-
-			const tokensToStrip = [
-				'user-select',
-				'-webkit-user-select',
-				'-moz-user-select',
-				'-ms-user-select',
-				'-webkit-touch-callout',
-				'-webkit-user-drag'
-			];
-
-			const attrToRemove = [
-				'unselectable',
-				'onselectstart',
-				'onselect',
-				'onmousedown',
-				'draggable',
-				'ondragstart',
-				'ondrag'
-			];
-
-			const classTokensToRemove = ['noselect', 'no-select', 'unselectable', 'disable-select'];
-
-			let current = elementsWalker.nextNode();
-			while (current) {
-				const el = current;
-				current = elementsWalker.nextNode();
-
-				if (!(el instanceof HTMLElement)) {
-					continue;
-				}
-
-				attrToRemove.forEach((attr) => {
-					if (el.hasAttribute(attr)) {
-						el.removeAttribute(attr);
-					}
-				});
-
-				const className = el.getAttribute('class');
-				if (className) {
-					const filteredClasses = className
-						.split(/\s+/)
-						.filter((token) => token && !classTokensToRemove.includes(token.toLowerCase()));
-					if (filteredClasses.length !== className.split(/\s+/).length) {
-						if (filteredClasses.length > 0) {
-							el.setAttribute('class', filteredClasses.join(' '));
-						} else {
-							el.removeAttribute('class');
-						}
-					}
-				}
-
-				if (el.hasAttribute('style')) {
-					const styleValue = el.getAttribute('style') || '';
-					const filteredStyle = styleValue
-						.split(';')
-						.map((part) => part.trim())
-						.filter((part) => {
-							if (!part) return false;
-							const lower = part.toLowerCase();
-							return !tokensToStrip.some((token) => lower.startsWith(token));
-						})
-						.join('; ');
-
-					if (filteredStyle) {
-						el.setAttribute('style', filteredStyle);
-					} else {
-						el.removeAttribute('style');
-					}
-				}
-			}
-
-			return template.innerHTML;
-		} catch (error) {
-			return html;
-		}
-	}, []);
-
 	const renderPageContent = () => {
 		if (!Array.isArray(currentPageData)) return null;
 
-		return currentPageData.map((html, index) => {
-			const transformed = transformHtmlForSelection(html);
-			return (
-				<div
-					key={index}
-					className="content-text"
-					data-original-html={html}
-					dangerouslySetInnerHTML={{ __html: transformed }}
-				/>
-			);
-		});
+		return currentPageData.map((html, index) => (
+			<div
+				key={index}
+				className="content-text"
+				data-original-html={html}
+				dangerouslySetInnerHTML={{ __html: html }}
+			/>
+		));
 	};
 
 	const handleTouchStart = (e) => {
@@ -532,6 +484,7 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 			const anchorNode = sel.anchorNode;
 			const focusNode = sel.focusNode;
 			if (container.contains(anchorNode) && container.contains(focusNode)) {
+				isTouchSelectingRef.current = true;
 				suppressSwipeRef.current = true;
 				scheduleShowSelectionTooltip(80);
 			}
@@ -548,10 +501,6 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 			scheduleShowSelectionTooltip(120);
 			touchStartRef.current = null;
 			touchMoveRef.current = null;
-			setTimeout(() => {
-				isTouchSelectingRef.current = false;
-				suppressSwipeRef.current = false;
-			}, 200);
 			return;
 		}
 
