@@ -53,8 +53,10 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 			setError('');
 
 			try {
-				const from = Math.max(1, currentPage - 4);
-				const to = currentPage + 4;
+				const targetIndex = Math.max(currentPage - 1, 0);
+				const windowSize = 4;
+				const from = Math.max(targetIndex - windowSize, 0);
+				const to = targetIndex + windowSize;
 
 				const data = await fetchEpubPages({
 					path: bookPath,
@@ -71,7 +73,7 @@ const Book = ({ currentPage, totalPages = 10, onTotalPagesChange, onPageChange }
 				setMeta({ title: respTitle, author: respAuthor });
 
 				if (respPages.length > 0) {
-					const currentPageIndex = currentPage - from;
+					const currentPageIndex = targetIndex - from;
 					if (currentPageIndex >= 0 && currentPageIndex < respPages.length) {
 						setPages([respPages[currentPageIndex]]);
 					} else {
